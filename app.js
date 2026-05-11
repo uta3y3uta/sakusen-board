@@ -2,28 +2,43 @@
 // 作戦ボードアプリ
 // ============================================================
 
+const STORAGE_KEY = 'sakusen-board-v3';
+
+// Muted stroke color for board designs (so cards stand out)
+const STROKE = 'rgba(255,255,255,0.55)';
+
+// 20-color palette for the color picker (+ "その他" for free RGB)
+const COLOR_PALETTE = [
+  '#ffffff','#e0e0e0','#a0a0a0','#5a5a5a','#1e1e1e',
+  '#ffd9d9','#e85a5a','#a93030','#ff8c42','#ffd86b',
+  '#d4e6ff','#2d8cff','#1e3a5f','#d9f0d9','#2e7d32',
+  '#ead7f7','#9c4dcc','#c2185b','#f0e0c8','#8b6f3a'
+];
+
 const DEFAULT_OWN_CARD = '#ffffff';
 const DEFAULT_OWN_TEXT = '#1e3a5f';
 const DEFAULT_OPP_CARD = '#ffe1e1';
 const DEFAULT_OPP_TEXT = '#a93030';
-
-const STORAGE_KEY = 'sakusen-board-v2';
 
 let state = {
   boardName: '',
   sport: 'free',
   activeTeam: 'own',
   members: [],
+  shapes: [],
   drawings: []
 };
 
 let editingMemberId = null;
+let selectedShapeId = null;
+
+const pickers = {};
 
 // Drawing tool state
 let drawTool = {
-  mode: 'pen',       // 'pen' | 'eraser'
+  mode: 'pen',
   color: '#e02e2e',
-  width: 4,          // pixels (relative to 1000-wide canvas)
+  width: 4,
   isDrawing: false,
   currentStroke: null
 };
@@ -43,25 +58,26 @@ function loadState() {
   const fromUrl = decodeStateFromUrl();
   if (fromUrl) {
     state = Object.assign(state, fromUrl);
-    return;
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      state = Object.assign(state, parsed);
+  } else {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        state = Object.assign(state, parsed);
+      }
+    } catch (e) {
+      console.warn('読込に失敗しました', e);
     }
-  } catch (e) {
-    console.warn('読込に失敗しました', e);
   }
   if (!state.drawings) state.drawings = [];
+  if (!state.shapes) state.shapes = [];
 }
 
 // ============================================================
 // Utilities
 // ============================================================
-function uid() {
-  return 'm_' + Math.random().toString(36).slice(2, 10);
+function uid(prefix = 'm_') {
+  return prefix + Math.random().toString(36).slice(2, 10);
 }
 
 function defaultColorsFor(team) {
@@ -73,16 +89,13 @@ function defaultColorsFor(team) {
 function makeMember({ name = '', other = '', team = 'own', number = '' } = {}) {
   const c = defaultColorsFor(team);
   return {
-    id: uid(),
-    name,
-    other,
-    number,
+    id: uid('m_'),
+    name, other, number,
     showNumber: false,
     team,
     cardColor: c.card,
     textColor: c.text,
-    x: 0.5,
-    y: 0.5,
+    x: 0.5, y: 0.5,
     onBoard: false
   };
 }
@@ -105,153 +118,159 @@ function timestamp() {
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+// ============================================================
+// Color picker component
+// ============================================================
+function createColorPicker(initial, onChange, options = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'color-picker' + (options.compact ? ' compact' : '');
+  let value = initial || COLOR_PALETTE[0];
+  const swatches = [];
+
+  COLOR_PALETTE.forEach(c => {
+    const s = document.createElement('span');
+    s.className = 'cp-swatch';
+    s.style.background = c;
+    s.dataset.color = c;
+    s.title = c;
+    s.addEventListener('click', () => setValue(c));
+    wrap.appendChild(s);
+    swatches.push(s);
+  });
+
+  const custom = document.createElement('span');
+  custom.className = 'cp-swatch cp-custom';
+  custom.title = 'その他（自由な色を指定）';
+  custom.textContent = '他';
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.className = 'cp-custom-input';
+  input.value = value;
+  custom.appendChild(input);
+  input.addEventListener('input', e => setValue(e.target.value));
+  wrap.appendChild(custom);
+
+  function setValue(v, fireChange = true) {
+    value = v;
+    swatches.forEach(s => s.classList.remove('active'));
+    custom.classList.remove('active');
+    custom.style.background = '';
+    const match = swatches.find(s => s.dataset.color === v);
+    if (match) {
+      match.classList.add('active');
+    } else {
+      custom.classList.add('active');
+      custom.style.background = v;
+    }
+    input.value = v;
+    if (fireChange && onChange) onChange(value);
+  }
+
+  setValue(value, false);
+
+  return {
+    el: wrap,
+    getValue: () => value,
+    setValue: (v) => setValue(v, false)
+  };
+}
+
 // ============================================================
 // 10 Board background designs (SVG)
-// viewBox is 1000 x 600
+// Minimal: no text, no decorative frames. Muted colors.
+// viewBox: 1000 x 600
 // ============================================================
 const SPORT_SVGS = {
   free: () => `
     <defs>
       <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#dfe5ee" stroke-width="1"/>
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e6ebf2" stroke-width="0.6"/>
       </pattern>
     </defs>
     <rect width="1000" height="600" fill="url(#grid)"/>
   `,
 
   soccer: () => `
-    <rect x="20" y="20" width="960" height="560" fill="none" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="20" x2="500" y2="580" stroke="#fff" stroke-width="3"/>
-    <circle cx="500" cy="300" r="70" fill="none" stroke="#fff" stroke-width="3"/>
-    <circle cx="500" cy="300" r="4" fill="#fff"/>
-    <rect x="20" y="170" width="120" height="260" fill="none" stroke="#fff" stroke-width="3"/>
-    <rect x="20" y="240" width="50" height="120" fill="none" stroke="#fff" stroke-width="3"/>
-    <rect x="860" y="170" width="120" height="260" fill="none" stroke="#fff" stroke-width="3"/>
-    <rect x="930" y="240" width="50" height="120" fill="none" stroke="#fff" stroke-width="3"/>
-    <path d="M 140 240 A 70 70 0 0 1 140 360" fill="none" stroke="#fff" stroke-width="3"/>
-    <path d="M 860 240 A 70 70 0 0 0 860 360" fill="none" stroke="#fff" stroke-width="3"/>
+    <line x1="500" y1="20" x2="500" y2="580" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="500" cy="300" r="70" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="500" cy="300" r="3" fill="${STROKE}"/>
+    <rect x="20" y="170" width="120" height="260" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="860" y="170" width="120" height="260" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 140 240 A 70 70 0 0 1 140 360" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 860 240 A 70 70 0 0 0 860 360" fill="none" stroke="${STROKE}" stroke-width="2"/>
   `,
 
   basketball: () => `
-    <rect x="20" y="20" width="960" height="560" fill="none" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="20" x2="500" y2="580" stroke="#fff" stroke-width="3"/>
-    <circle cx="500" cy="300" r="60" fill="none" stroke="#fff" stroke-width="3"/>
-    <rect x="20" y="170" width="180" height="260" fill="none" stroke="#fff" stroke-width="3"/>
-    <rect x="800" y="170" width="180" height="260" fill="none" stroke="#fff" stroke-width="3"/>
-    <circle cx="200" cy="300" r="60" fill="none" stroke="#fff" stroke-width="3"/>
-    <circle cx="800" cy="300" r="60" fill="none" stroke="#fff" stroke-width="3"/>
-    <path d="M 20 110 Q 220 300 20 490" fill="none" stroke="#fff" stroke-width="3"/>
-    <path d="M 980 110 Q 780 300 980 490" fill="none" stroke="#fff" stroke-width="3"/>
-    <line x1="40" y1="290" x2="60" y2="290" stroke="#fff" stroke-width="4"/>
-    <line x1="40" y1="310" x2="60" y2="310" stroke="#fff" stroke-width="4"/>
-    <line x1="940" y1="290" x2="960" y2="290" stroke="#fff" stroke-width="4"/>
-    <line x1="940" y1="310" x2="960" y2="310" stroke="#fff" stroke-width="4"/>
+    <line x1="500" y1="20" x2="500" y2="580" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="500" cy="300" r="60" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="20" y="180" width="170" height="240" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="810" y="180" width="170" height="240" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 20 100 Q 230 300 20 500" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 980 100 Q 770 300 980 500" fill="none" stroke="${STROKE}" stroke-width="2"/>
   `,
 
   volleyball: () => `
-    <rect x="100" y="80" width="800" height="440" fill="none" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="80" x2="500" y2="520" stroke="#fff" stroke-width="5"/>
-    <line x1="300" y1="80" x2="300" y2="520" stroke="#fff" stroke-width="3" stroke-dasharray="6,4"/>
-    <line x1="700" y1="80" x2="700" y2="520" stroke="#fff" stroke-width="3" stroke-dasharray="6,4"/>
-    <text x="200" y="50" fill="#fff" font-size="20" text-anchor="middle">後衛</text>
-    <text x="800" y="50" fill="#fff" font-size="20" text-anchor="middle">後衛</text>
-    <text x="400" y="50" fill="#fff" font-size="20" text-anchor="middle">前衛</text>
-    <text x="600" y="50" fill="#fff" font-size="20" text-anchor="middle">前衛</text>
+    <line x1="500" y1="60" x2="500" y2="540" stroke="${STROKE}" stroke-width="4"/>
+    <line x1="320" y1="60" x2="320" y2="540" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
+    <line x1="680" y1="60" x2="680" y2="540" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
   `,
 
   baseball: () => `
-    <path d="M 500 540 L 100 200 A 600 600 0 0 1 900 200 Z" fill="#c9a87a" stroke="#fff" stroke-width="2"/>
-    <path d="M 500 540 L 100 200 A 600 600 0 0 1 900 200 Z" fill="none" stroke="#fff" stroke-width="2"/>
-    <polygon points="500,440 600,360 500,280 400,360" fill="#6ea84c" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="440" x2="600" y2="360" stroke="#fff" stroke-width="3"/>
-    <line x1="600" y1="360" x2="500" y2="280" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="280" x2="400" y2="360" stroke="#fff" stroke-width="3"/>
-    <line x1="400" y1="360" x2="500" y2="440" stroke="#fff" stroke-width="3"/>
-    <circle cx="500" cy="370" r="14" fill="#c9a87a" stroke="#fff" stroke-width="2"/>
-    <rect x="492" y="436" width="16" height="12" fill="#fff"/>
-    <rect x="592" y="356" width="14" height="12" fill="#fff"/>
-    <rect x="394" y="356" width="14" height="12" fill="#fff"/>
-    <polygon points="500,272 508,284 500,290 492,284" fill="#fff"/>
-    <line x1="500" y1="540" x2="200" y2="240" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="540" x2="800" y2="240" stroke="#fff" stroke-width="3"/>
+    <polygon points="500,460 600,360 500,260 400,360" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="500" cy="380" r="14" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="492" y="456" width="16" height="12" fill="${STROKE}"/>
+    <rect x="592" y="356" width="14" height="12" fill="${STROKE}"/>
+    <rect x="394" y="356" width="14" height="12" fill="${STROKE}"/>
+    <polygon points="500,252 508,264 500,270 492,264" fill="${STROKE}"/>
   `,
 
   dodgeball: () => `
-    <rect x="50" y="50" width="900" height="500" fill="none" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="50" x2="500" y2="550" stroke="#fff" stroke-width="3"/>
-    <rect x="50" y="50" width="450" height="500" fill="rgba(255,255,255,0.05)"/>
-    <rect x="500" y="50" width="450" height="500" fill="rgba(0,0,0,0.05)"/>
-    <line x1="50" y1="50" x2="50" y2="550" stroke="#fff" stroke-width="6" stroke-dasharray="10,8"/>
-    <line x1="950" y1="50" x2="950" y2="550" stroke="#fff" stroke-width="6" stroke-dasharray="10,8"/>
-    <text x="250" y="40" fill="#fff" font-size="22" text-anchor="middle" font-weight="bold">内野</text>
-    <text x="750" y="40" fill="#fff" font-size="22" text-anchor="middle" font-weight="bold">内野</text>
-    <text x="25" y="305" fill="#fff" font-size="16" text-anchor="middle" font-weight="bold" transform="rotate(-90 25 305)">外野</text>
-    <text x="975" y="305" fill="#fff" font-size="16" text-anchor="middle" font-weight="bold" transform="rotate(90 975 305)">外野</text>
+    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="3"/>
+    <line x1="60" y1="40" x2="60" y2="560" stroke="${STROKE}" stroke-width="3" stroke-dasharray="10,8"/>
+    <line x1="940" y1="40" x2="940" y2="560" stroke="${STROKE}" stroke-width="3" stroke-dasharray="10,8"/>
   `,
 
   track: () => `
-    <rect x="60" y="80" width="880" height="440" rx="220" ry="220" fill="#a76b3a" stroke="#fff" stroke-width="3"/>
-    <rect x="120" y="140" width="760" height="320" rx="160" ry="160" fill="#a76b3a" stroke="#fff" stroke-width="2" stroke-dasharray="6,6"/>
-    <rect x="180" y="200" width="640" height="200" rx="100" ry="100" fill="#6ea84c" stroke="#fff" stroke-width="3"/>
-    <line x1="500" y1="80" x2="500" y2="140" stroke="#fff" stroke-width="4"/>
-    <line x1="500" y1="460" x2="500" y2="520" stroke="#fff" stroke-width="4"/>
-    <text x="500" y="60" fill="#fff" font-size="18" text-anchor="middle" font-weight="bold">スタート／ゴール</text>
+    <rect x="80" y="80" width="840" height="440" rx="220" ry="220" fill="none" stroke="${STROKE}" stroke-width="3"/>
+    <rect x="140" y="140" width="720" height="320" rx="160" ry="160" fill="none" stroke="${STROKE}" stroke-width="1.5" stroke-dasharray="6,6"/>
+    <rect x="200" y="200" width="600" height="200" rx="100" ry="100" fill="rgba(110,150,90,0.35)" stroke="${STROKE}" stroke-width="2"/>
   `,
 
-  classroom: () => `
-    <rect x="40" y="40" width="920" height="520" fill="none" stroke="#7a6a4a" stroke-width="3"/>
-    <rect x="350" y="60" width="300" height="40" fill="#3a3a3a" stroke="#7a6a4a" stroke-width="2"/>
-    <text x="500" y="88" fill="#fff" font-size="18" text-anchor="middle">黒板</text>
-    <rect x="80" y="110" width="50" height="30" fill="#fff" stroke="#7a6a4a" stroke-width="1.5"/>
-    <text x="105" y="130" font-size="11" text-anchor="middle" fill="#888">教卓</text>
-    ${(function() {
-      let out = '';
-      const cols = 6, rows = 5;
-      const startX = 130, startY = 200;
-      const gapX = 130, gapY = 70;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = startX + c * gapX;
-          const y = startY + r * gapY;
-          out += `<rect x="${x}" y="${y}" width="80" height="50" fill="#fff" stroke="#7a6a4a" stroke-width="1.5" rx="4"/>`;
-          out += `<circle cx="${x+40}" cy="${y+62}" r="6" fill="#7a6a4a"/>`;
-        }
+  classroom: () => {
+    let out = '';
+    const cols = 6, rows = 5;
+    const startX = 165, startY = 165;
+    const gapX = 125, gapY = 80;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * gapX;
+        const y = startY + r * gapY;
+        out += `<rect x="${x}" y="${y}" width="70" height="45" fill="none" stroke="rgba(120,100,70,0.5)" stroke-width="1.5" rx="3"/>`;
       }
-      return out;
-    })()}
-  `,
+    }
+    return out;
+  },
 
-  assembly: () => `
-    <rect x="40" y="40" width="920" height="520" fill="none" stroke="#7a6a4a" stroke-width="3"/>
-    <rect x="350" y="60" width="300" height="60" fill="#8b6f3a" stroke="#5a4a2a" stroke-width="2"/>
-    <text x="500" y="98" fill="#fff" font-size="20" text-anchor="middle" font-weight="bold">ステージ</text>
-    <line x1="100" y1="160" x2="900" y2="160" stroke="#7a6a4a" stroke-width="2" stroke-dasharray="4,4"/>
-    ${(function() {
-      let out = '';
-      const rows = 5, cols = 12;
-      const startX = 130, startY = 200;
-      const gapX = 62, gapY = 70;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = startX + c * gapX;
-          const y = startY + r * gapY;
-          out += `<circle cx="${x}" cy="${y}" r="14" fill="#fff" stroke="#7a6a4a" stroke-width="1.5"/>`;
-        }
+  assembly: () => {
+    let out = `<rect x="380" y="60" width="240" height="50" fill="none" stroke="rgba(120,100,70,0.55)" stroke-width="2"/>`;
+    const rows = 6, cols = 14;
+    const startX = 110, startY = 180;
+    const gapX = 60, gapY = 60;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * gapX;
+        const y = startY + r * gapY;
+        out += `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="rgba(120,100,70,0.5)" stroke-width="1.2"/>`;
       }
-      return out;
-    })()}
-  `,
+    }
+    return out;
+  },
 
   ground: () => `
-    <rect x="30" y="30" width="940" height="540" fill="none" stroke="#fff" stroke-width="3"/>
-    <ellipse cx="500" cy="300" rx="380" ry="220" fill="#6ea84c" stroke="#fff" stroke-width="3"/>
-    <circle cx="500" cy="300" r="60" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="6,4"/>
-    <rect x="80" y="80" width="200" height="100" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
-    <text x="180" y="135" fill="#fff" font-size="16" text-anchor="middle">遊具</text>
-    <rect x="720" y="80" width="200" height="100" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
-    <text x="820" y="135" fill="#fff" font-size="16" text-anchor="middle">砂場</text>
-    <rect x="80" y="440" width="200" height="100" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
-    <text x="180" y="495" fill="#fff" font-size="16" text-anchor="middle">朝礼台</text>
+    <ellipse cx="500" cy="300" rx="420" ry="240" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-dasharray="8,6"/>
+    <ellipse cx="500" cy="300" rx="280" ry="150" fill="rgba(140,170,110,0.3)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
   `
 };
 
@@ -283,7 +302,6 @@ function renderMemberList() {
     const li = document.createElement('li');
     li.className = 'member-item';
 
-    // Number + checkbox cell
     const numCell = document.createElement('div');
     numCell.className = 'member-num-cell';
     const numCheck = document.createElement('input');
@@ -384,16 +402,13 @@ function renderCards() {
       card.appendChild(otherSpan);
     }
 
-    attachDrag(card, m);
+    attachCardDrag(card, m);
     card.addEventListener('dblclick', () => openEditModal(m.id));
     layer.appendChild(card);
   });
 }
 
-// ============================================================
-// Drag and drop
-// ============================================================
-function attachDrag(card, member) {
+function attachCardDrag(card, member) {
   let startX, startY, originX, originY;
   let dragging = false;
 
@@ -402,9 +417,9 @@ function attachDrag(card, member) {
     e.preventDefault();
     dragging = true;
     card.classList.add('dragging');
-    const point = e.touches ? e.touches[0] : e;
-    startX = point.clientX;
-    startY = point.clientY;
+    const p = e.touches ? e.touches[0] : e;
+    startX = p.clientX;
+    startY = p.clientY;
     originX = member.x;
     originY = member.y;
     document.addEventListener('mousemove', onMove);
@@ -416,15 +431,14 @@ function attachDrag(card, member) {
   const onMove = (e) => {
     if (!dragging) return;
     e.preventDefault();
-    const point = e.touches ? e.touches[0] : e;
+    const p = e.touches ? e.touches[0] : e;
     const board = document.getElementById('board');
     const rect = board.getBoundingClientRect();
-    const dx = (point.clientX - startX) / rect.width;
-    const dy = (point.clientY - startY) / rect.height;
-    let nx = Math.min(1, Math.max(0, originX + dx));
-    let ny = Math.min(1, Math.max(0, originY + dy));
-    member.x = nx;
-    member.y = ny;
+    const dx = (p.clientX - startX) / rect.width;
+    const dy = (p.clientY - startY) / rect.height;
+    const nx = clamp(originX + dx, 0, 1);
+    const ny = clamp(originY + dy, 0, 1);
+    member.x = nx; member.y = ny;
     card.style.left = (nx * 100) + '%';
     card.style.top = (ny * 100) + '%';
   };
@@ -445,6 +459,256 @@ function attachDrag(card, member) {
 }
 
 // ============================================================
+// Shapes (rect / circle / triangle / arrow / line / double-arrow)
+// ============================================================
+function makeShape(type) {
+  const s = {
+    id: uid('s_'),
+    type,
+    x: 0.5, y: 0.5,
+    w: 0.12, h: 0.12,
+    rotation: 0,
+    color: '#1e3a5f',
+    strokeWidth: 3,
+    filled: false
+  };
+  if (type === 'arrow' || type === 'double-arrow' || type === 'line') {
+    s.w = 0.22;
+    s.h = 0.06;
+  }
+  return s;
+}
+
+function shapeInnerSvg(shape) {
+  const c = shape.color;
+  const sw = shape.strokeWidth || 3;
+  const fill = shape.filled ? c : 'none';
+  const ns = ` vector-effect="non-scaling-stroke"`;
+  if (shape.type === 'rect') {
+    return `<rect x="3" y="3" width="94" height="94" fill="${fill}" stroke="${c}" stroke-width="${sw}"${ns}/>`;
+  }
+  if (shape.type === 'circle') {
+    return `<ellipse cx="50" cy="50" rx="47" ry="47" fill="${fill}" stroke="${c}" stroke-width="${sw}"${ns}/>`;
+  }
+  if (shape.type === 'triangle') {
+    return `<polygon points="50,5 95,95 5,95" fill="${fill}" stroke="${c}" stroke-width="${sw}"${ns} stroke-linejoin="round"/>`;
+  }
+  if (shape.type === 'line') {
+    return `<line x1="3" y1="50" x2="97" y2="50" stroke="${c}" stroke-width="${sw}"${ns} stroke-linecap="round"/>`;
+  }
+  if (shape.type === 'arrow') {
+    return `
+      <line x1="3" y1="50" x2="78" y2="50" stroke="${c}" stroke-width="${sw}"${ns} stroke-linecap="round"/>
+      <polygon points="97,50 78,34 78,66" fill="${c}" stroke="${c}" stroke-width="${sw}"${ns} stroke-linejoin="round"/>
+    `;
+  }
+  if (shape.type === 'double-arrow') {
+    return `
+      <line x1="22" y1="50" x2="78" y2="50" stroke="${c}" stroke-width="${sw}"${ns} stroke-linecap="round"/>
+      <polygon points="3,50 22,34 22,66" fill="${c}" stroke="${c}" stroke-width="${sw}"${ns} stroke-linejoin="round"/>
+      <polygon points="97,50 78,34 78,66" fill="${c}" stroke="${c}" stroke-width="${sw}"${ns} stroke-linejoin="round"/>
+    `;
+  }
+  return '';
+}
+
+function renderShapes() {
+  const layer = document.getElementById('shapeLayer');
+  layer.innerHTML = '';
+  const board = document.getElementById('board');
+  const rect = board.getBoundingClientRect();
+  state.shapes.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'shape' + (s.id === selectedShapeId ? ' selected' : '');
+    div.dataset.id = s.id;
+    div.style.left = (s.x * 100) + '%';
+    div.style.top = (s.y * 100) + '%';
+    div.style.width = (s.w * rect.width) + 'px';
+    div.style.height = (s.h * rect.height) + 'px';
+    div.style.transform = `translate(-50%, -50%) rotate(${s.rotation}deg)`;
+
+    div.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${shapeInnerSvg(s)}</svg>`;
+
+    if (s.id === selectedShapeId) {
+      const bbox = document.createElement('div');
+      bbox.className = 'shape-bbox';
+      div.appendChild(bbox);
+      const hResize = document.createElement('div');
+      hResize.className = 'shape-handle handle-resize';
+      hResize.dataset.handle = 'resize';
+      const hRotate = document.createElement('div');
+      hRotate.className = 'shape-handle handle-rotate';
+      hRotate.dataset.handle = 'rotate';
+      div.appendChild(hResize);
+      div.appendChild(hRotate);
+    }
+
+    attachShapeEvents(div, s);
+    layer.appendChild(div);
+  });
+}
+
+function attachShapeEvents(div, shape) {
+  let action = null;
+  let start = {};
+
+  const onDown = (e) => {
+    if (document.getElementById('board').classList.contains('draw-mode')) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    const handle = e.target.closest('.shape-handle');
+    const board = document.getElementById('board');
+    const boardRect = board.getBoundingClientRect();
+    const centerX = boardRect.left + shape.x * boardRect.width;
+    const centerY = boardRect.top + shape.y * boardRect.height;
+
+    if (handle) {
+      action = handle.dataset.handle === 'resize' ? 'resize' : 'rotate';
+    } else {
+      action = 'move';
+      selectShape(shape.id);
+    }
+
+    start = {
+      clientX: p.clientX, clientY: p.clientY,
+      boardWidth: boardRect.width, boardHeight: boardRect.height,
+      x: shape.x, y: shape.y,
+      w: shape.w, h: shape.h,
+      rotation: shape.rotation,
+      centerX, centerY
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+  };
+
+  const onMove = (e) => {
+    if (!action) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+
+    if (action === 'move') {
+      const dx = (p.clientX - start.clientX) / start.boardWidth;
+      const dy = (p.clientY - start.clientY) / start.boardHeight;
+      shape.x = clamp(start.x + dx, 0, 1);
+      shape.y = clamp(start.y + dy, 0, 1);
+      div.style.left = (shape.x * 100) + '%';
+      div.style.top = (shape.y * 100) + '%';
+    } else if (action === 'resize') {
+      const mx = p.clientX - start.centerX;
+      const my = p.clientY - start.centerY;
+      const rad = -start.rotation * Math.PI / 180;
+      const localX = mx * Math.cos(rad) - my * Math.sin(rad);
+      const localY = mx * Math.sin(rad) + my * Math.cos(rad);
+      const minPx = 20;
+      const halfWpx = Math.max(minPx, Math.abs(localX));
+      const halfHpx = Math.max(minPx, Math.abs(localY));
+      shape.w = (halfWpx * 2) / start.boardWidth;
+      shape.h = (halfHpx * 2) / start.boardHeight;
+      div.style.width = (halfWpx * 2) + 'px';
+      div.style.height = (halfHpx * 2) + 'px';
+    } else if (action === 'rotate') {
+      const angle = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX);
+      shape.rotation = (angle * 180 / Math.PI) + 90;
+      div.style.transform = `translate(-50%, -50%) rotate(${shape.rotation}deg)`;
+    }
+  };
+
+  const onUp = () => {
+    if (!action) return;
+    action = null;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+    saveState();
+  };
+
+  div.addEventListener('mousedown', onDown);
+  div.addEventListener('touchstart', onDown, { passive: false });
+}
+
+function selectShape(id) {
+  if (selectedShapeId === id) return;
+  selectedShapeId = id;
+  renderShapes();
+  updateShapeToolbar();
+}
+
+function deselectShape() {
+  if (!selectedShapeId) return;
+  selectedShapeId = null;
+  renderShapes();
+  updateShapeToolbar();
+}
+
+function updateShapeToolbar() {
+  const tb = document.getElementById('shapeEditToolbar');
+  const s = state.shapes.find(x => x.id === selectedShapeId);
+  if (!s) {
+    tb.classList.add('hidden');
+    return;
+  }
+  tb.classList.remove('hidden');
+  pickers.shape.setValue(s.color);
+  document.getElementById('shapeStrokeWidth').value = s.strokeWidth;
+  const fillBtn = document.getElementById('btnShapeFill');
+  fillBtn.classList.toggle('active', !!s.filled);
+}
+
+function addShape(type) {
+  const s = makeShape(type);
+  state.shapes.push(s);
+  selectedShapeId = s.id;
+  saveState();
+  renderShapes();
+  updateShapeToolbar();
+}
+
+function rotateSelectedShape(deg) {
+  const s = state.shapes.find(x => x.id === selectedShapeId);
+  if (!s) return;
+  s.rotation = (s.rotation + deg) % 360;
+  saveState();
+  renderShapes();
+}
+
+function duplicateSelectedShape() {
+  const s = state.shapes.find(x => x.id === selectedShapeId);
+  if (!s) return;
+  const copy = JSON.parse(JSON.stringify(s));
+  copy.id = uid('s_');
+  copy.x = clamp(copy.x + 0.04, 0, 1);
+  copy.y = clamp(copy.y + 0.04, 0, 1);
+  state.shapes.push(copy);
+  selectedShapeId = copy.id;
+  saveState();
+  renderShapes();
+  updateShapeToolbar();
+}
+
+function deleteSelectedShape() {
+  if (!selectedShapeId) return;
+  state.shapes = state.shapes.filter(s => s.id !== selectedShapeId);
+  selectedShapeId = null;
+  saveState();
+  renderShapes();
+  updateShapeToolbar();
+}
+
+function toggleSelectedShapeFill() {
+  const s = state.shapes.find(x => x.id === selectedShapeId);
+  if (!s) return;
+  s.filled = !s.filled;
+  saveState();
+  renderShapes();
+  updateShapeToolbar();
+}
+
+// ============================================================
 // Drawing layer (Whiteboard marker)
 // ============================================================
 function setupDrawCanvas() {
@@ -456,14 +720,12 @@ function setupDrawCanvas() {
     canvas.width = rect.width;
     canvas.height = rect.height;
     redrawStrokes();
+    renderShapes();
   };
   window.addEventListener('resize', resize);
-  // Initial size after layout
   requestAnimationFrame(resize);
-  // Also re-resize when sport changes (board may resize)
   new ResizeObserver(resize).observe(board);
 
-  // Drawing events
   const getPoint = (e) => {
     const rect = canvas.getBoundingClientRect();
     const p = e.touches ? e.touches[0] : e;
@@ -504,7 +766,7 @@ function setupDrawCanvas() {
     }
   };
 
-  const onUp = (e) => {
+  const onUp = () => {
     if (!drawTool.isDrawing) return;
     drawTool.isDrawing = false;
     if (drawTool.mode === 'pen' && drawTool.currentStroke && drawTool.currentStroke.points.length > 1) {
@@ -549,7 +811,7 @@ function redrawStrokes() {
 }
 
 function eraseAt(pt) {
-  const threshold = 0.018; // normalized distance
+  const threshold = 0.018;
   const before = state.drawings.length;
   state.drawings = state.drawings.filter(stroke => {
     return !stroke.points.some(([x, y]) => {
@@ -585,8 +847,9 @@ function toggleDrawMode() {
   const on = !board.classList.contains('draw-mode');
   board.classList.toggle('draw-mode', on);
   btn.classList.toggle('active', on);
-  btn.textContent = on ? '描画モード終了' : '描画モード';
+  btn.textContent = on ? '描画終了' : '描画';
   tools.classList.toggle('hidden', !on);
+  if (on) deselectShape();
 }
 
 // ============================================================
@@ -609,14 +872,10 @@ function parsePasted(text, delimiter, firstColMode) {
     let number = '', name = '', other = '';
     const firstIsNum = /^\d{1,3}$/.test(parts[0]);
     const useNumber = firstColMode === 'number' || (firstColMode === 'auto' && firstIsNum && parts.length > 1);
-
     if (useNumber) {
-      number = parts[0];
-      name = parts[1] || '';
-      other = parts[2] || '';
+      number = parts[0]; name = parts[1] || ''; other = parts[2] || '';
     } else {
-      name = parts[0] || '';
-      other = parts[1] || '';
+      name = parts[0] || ''; other = parts[1] || '';
     }
     return { number, name, other };
   });
@@ -624,8 +883,7 @@ function parsePasted(text, delimiter, firstColMode) {
 
 function importMembers(rows, team) {
   rows.forEach(r => {
-    const m = makeMember({ name: r.name, other: r.other, team, number: r.number });
-    state.members.push(m);
+    state.members.push(makeMember({ name: r.name, other: r.other, team, number: r.number }));
   });
   saveState();
   renderMemberList();
@@ -636,10 +894,7 @@ function doPasteImport() {
   const delim = document.getElementById('pasteDelimiter').value;
   const team = document.getElementById('pasteTeam').value;
   const firstCol = document.getElementById('pasteFirstCol').value;
-  if (!text.trim()) {
-    alert('テキストが入力されていません。');
-    return;
-  }
+  if (!text.trim()) { alert('テキストが入力されていません。'); return; }
   const rows = parsePasted(text, delim, firstCol);
   importMembers(rows, team);
   document.getElementById('pasteInput').value = '';
@@ -666,21 +921,12 @@ function doExcelImport(file) {
           if (headerWords.includes(c0.toLowerCase()) || headerWords.includes(c1.toLowerCase())) return;
         }
         let number = '', name = '', other = '';
-        if (/^\d{1,3}$/.test(c0) && (c1 || c2)) {
-          number = c0;
-          name = c1;
-          other = c2;
-        } else {
-          name = c0;
-          other = c1;
-        }
+        if (/^\d{1,3}$/.test(c0) && (c1 || c2)) { number = c0; name = c1; other = c2; }
+        else { name = c0; other = c1; }
         if (!name && !other && !number) return;
         parsed.push({ number, name, other });
       });
-      if (parsed.length === 0) {
-        alert('取り込めるデータがありませんでした。');
-        return;
-      }
+      if (parsed.length === 0) { alert('取り込めるデータがありませんでした。'); return; }
       importMembers(parsed, team);
       closeModal('importModal');
     } catch (err) {
@@ -694,24 +940,18 @@ function doExcelImport(file) {
 async function doGsheetImport() {
   const url = document.getElementById('gsheetUrl').value.trim();
   const team = document.getElementById('gsheetTeam').value;
-  if (!url) {
-    alert('URLが入力されていません。');
-    return;
-  }
+  if (!url) { alert('URLが入力されていません。'); return; }
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const csv = await res.text();
     const rows = parsePasted(csv, 'comma', 'auto');
-    if (rows.length === 0) {
-      alert('取り込めるデータがありませんでした。');
-      return;
-    }
+    if (rows.length === 0) { alert('取り込めるデータがありませんでした。'); return; }
     importMembers(rows, team);
     document.getElementById('gsheetUrl').value = '';
     closeModal('importModal');
   } catch (err) {
-    alert('Googleスプレッドシートの読み込みに失敗しました。\nURLを確認するか，スプレッドシートのデータをコピー＆ペーストで取り込んでください。\n\n詳細：' + err.message);
+    alert('Googleスプレッドシートの読み込みに失敗しました。\nURLを確認するか，スプレッドシートをコピー＆ペーストで取り込んでください。\n\n詳細：' + err.message);
   }
 }
 
@@ -732,16 +972,21 @@ function jsonLoad(file) {
       if (!parsed.members) throw new Error('不正な作戦ボードJSONです');
       if (!confirm('現在のボードを読み込みデータで置き換えます。よろしいですか？')) return;
       state = Object.assign({
-        boardName: '', sport: 'free', activeTeam: 'own', members: [], drawings: []
+        boardName: '', sport: 'free', activeTeam: 'own',
+        members: [], shapes: [], drawings: []
       }, parsed);
+      if (!state.shapes) state.shapes = [];
+      if (!state.drawings) state.drawings = [];
+      selectedShapeId = null;
       saveState();
-      // Refresh UI
       document.getElementById('boardName').value = state.boardName || '';
       document.getElementById('sportSelect').value = state.sport || 'free';
       renderBoardBackground();
       renderMemberList();
       renderCards();
+      renderShapes();
       redrawStrokes();
+      updateShapeToolbar();
     } catch (err) {
       alert('JSONの読み込みに失敗しました：' + err.message);
     }
@@ -754,6 +999,10 @@ function jsonLoad(file) {
 // ============================================================
 async function jpegSave() {
   const board = document.getElementById('board');
+  // Temporarily deselect so handles don't show in capture
+  const prevSelected = selectedShapeId;
+  selectedShapeId = null;
+  renderShapes();
   try {
     const canvas = await html2canvas(board, {
       backgroundColor: null,
@@ -762,28 +1011,24 @@ async function jpegSave() {
       logging: false
     });
     canvas.toBlob((blob) => {
-      if (!blob) {
-        alert('画像の生成に失敗しました。');
-        return;
-      }
+      if (!blob) { alert('画像の生成に失敗しました。'); return; }
       const name = (state.boardName || 'sakusen-board').replace(/[^\w\-ぁ-んァ-ヶ一-龯]/g, '_');
       downloadFile(`${name}_${timestamp()}.jpg`, blob);
     }, 'image/jpeg', 0.92);
   } catch (err) {
     console.error(err);
     alert('JPEG保存に失敗しました：' + err.message);
+  } finally {
+    selectedShapeId = prevSelected;
+    renderShapes();
   }
 }
 
 // ============================================================
 // Modal helpers
 // ============================================================
-function openModal(id) {
-  document.getElementById(id).classList.remove('hidden');
-}
-function closeModal(id) {
-  document.getElementById(id).classList.add('hidden');
-}
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // ============================================================
 // Edit Modal
@@ -796,8 +1041,8 @@ function openEditModal(memberId) {
   document.getElementById('editName').value = m.name;
   document.getElementById('editOther').value = m.other;
   document.getElementById('editTeam').value = m.team;
-  document.getElementById('editCardColor').value = m.cardColor;
-  document.getElementById('editTextColor').value = m.textColor;
+  pickers.editCard.setValue(m.cardColor);
+  pickers.editText.setValue(m.textColor);
   document.getElementById('editShowNumber').checked = !!m.showNumber;
   document.getElementById('editOnBoard').checked = m.onBoard;
   openModal('memberEditModal');
@@ -811,8 +1056,8 @@ function saveEdit() {
   m.name = document.getElementById('editName').value;
   m.other = document.getElementById('editOther').value;
   m.team = document.getElementById('editTeam').value;
-  m.cardColor = document.getElementById('editCardColor').value;
-  m.textColor = document.getElementById('editTextColor').value;
+  m.cardColor = pickers.editCard.getValue();
+  m.textColor = pickers.editText.getValue();
   m.showNumber = document.getElementById('editShowNumber').checked;
   m.onBoard = document.getElementById('editOnBoard').checked;
   saveState();
@@ -836,10 +1081,17 @@ function deleteEditing() {
 // ============================================================
 // Bulk color
 // ============================================================
+function openBulkModal() {
+  pickers.bulkCard.setValue('#ffffff');
+  pickers.bulkText.setValue('#1e1e1e');
+  document.getElementById('bulkShowNumber').checked = false;
+  openModal('bulkColorModal');
+}
+
 function applyBulkColor() {
   const target = document.getElementById('bulkTarget').value;
-  const card = document.getElementById('bulkCardColor').value;
-  const text = document.getElementById('bulkTextColor').value;
+  const card = pickers.bulkCard.getValue();
+  const text = pickers.bulkText.getValue();
   const showNumber = document.getElementById('bulkShowNumber').checked;
   state.members.forEach((m, idx) => {
     if (target === 'all' || m.team === target) {
@@ -879,8 +1131,7 @@ function decodeStateFromUrl() {
 }
 
 function openShareModal() {
-  const url = encodeStateToUrl();
-  document.getElementById('shareUrl').value = url;
+  document.getElementById('shareUrl').value = encodeStateToUrl();
   document.getElementById('copyStatus').textContent = '';
   openModal('shareModal');
 }
@@ -912,16 +1163,20 @@ function wireEvents() {
     renderBoardBackground();
   });
   document.getElementById('btnImport').addEventListener('click', () => openModal('importModal'));
-  document.getElementById('btnBulkColor').addEventListener('click', () => openModal('bulkColorModal'));
+  document.getElementById('btnBulkColor').addEventListener('click', openBulkModal);
   document.getElementById('btnShare').addEventListener('click', openShareModal);
   document.getElementById('btnClear').addEventListener('click', () => {
-    if (!confirm('すべてのメンバー・カード・描画を削除します。よろしいですか？')) return;
+    if (!confirm('すべてのメンバー・カード・図形・描画を削除します。よろしいですか？')) return;
     state.members = [];
+    state.shapes = [];
     state.drawings = [];
+    selectedShapeId = null;
     saveState();
     renderMemberList();
     renderCards();
+    renderShapes();
     redrawStrokes();
+    updateShapeToolbar();
   });
   document.getElementById('btnAddBlank').addEventListener('click', () => {
     const m = makeMember({ team: state.activeTeam });
@@ -946,8 +1201,7 @@ function wireEvents() {
   document.getElementById('btnAddMember').addEventListener('click', () => {
     const name = prompt('名前を入力してください（空欄でも可）');
     if (name === null) return;
-    const m = makeMember({ name: name.trim(), team: state.activeTeam });
-    state.members.push(m);
+    state.members.push(makeMember({ name: name.trim(), team: state.activeTeam }));
     saveState();
     renderMemberList();
   });
@@ -983,14 +1237,46 @@ function wireEvents() {
       drawTool.mode = btn.dataset.mode;
     });
   });
-  document.getElementById('penColor').addEventListener('input', e => {
-    drawTool.color = e.target.value;
-  });
   document.getElementById('penWidth').addEventListener('input', e => {
     drawTool.width = Number(e.target.value);
   });
   document.getElementById('btnUndoStroke').addEventListener('click', undoStroke);
   document.getElementById('btnClearStrokes').addEventListener('click', clearStrokes);
+
+  // Board toolbar — shapes
+  document.querySelectorAll('.bt-shape').forEach(btn => {
+    btn.addEventListener('click', () => addShape(btn.dataset.shape));
+  });
+
+  // Shape edit toolbar
+  document.getElementById('shapeStrokeWidth').addEventListener('input', e => {
+    const s = state.shapes.find(x => x.id === selectedShapeId);
+    if (!s) return;
+    s.strokeWidth = Number(e.target.value);
+    saveState();
+    renderShapes();
+  });
+  document.getElementById('btnShapeFill').addEventListener('click', toggleSelectedShapeFill);
+  document.getElementById('btnShapeRotateL').addEventListener('click', () => rotateSelectedShape(-15));
+  document.getElementById('btnShapeRotateR').addEventListener('click', () => rotateSelectedShape(15));
+  document.getElementById('btnShapeDuplicate').addEventListener('click', duplicateSelectedShape);
+  document.getElementById('btnShapeDelete').addEventListener('click', deleteSelectedShape);
+
+  // Click on empty area of board → deselect shape
+  document.getElementById('shapeLayer').addEventListener('mousedown', (e) => {
+    if (e.target.id === 'shapeLayer') deselectShape();
+  });
+  document.getElementById('board').addEventListener('mousedown', (e) => {
+    if (e.target.id === 'board' || e.target.id === 'boardBg') deselectShape();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') deselectShape();
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShapeId &&
+        document.activeElement.tagName !== 'INPUT' &&
+        document.activeElement.tagName !== 'TEXTAREA') {
+      deleteSelectedShape();
+    }
+  });
 
   // Board toolbar — JSON / JPEG
   document.getElementById('btnJsonSave').addEventListener('click', jsonSave);
@@ -1024,7 +1310,6 @@ function wireEvents() {
       });
     });
   });
-
   document.getElementById('btnDoPasteImport').addEventListener('click', doPasteImport);
   document.getElementById('excelInput').addEventListener('change', e => {
     if (e.target.files[0]) doExcelImport(e.target.files[0]);
@@ -1045,15 +1330,37 @@ function wireEvents() {
 // ============================================================
 // Init
 // ============================================================
+function initPickers() {
+  pickers.editCard = createColorPicker('#ffffff');
+  pickers.editText = createColorPicker('#1e3a5f');
+  pickers.bulkCard = createColorPicker('#ffffff');
+  pickers.bulkText = createColorPicker('#1e1e1e');
+  pickers.pen = createColorPicker(drawTool.color, v => { drawTool.color = v; }, { compact: true });
+  pickers.shape = createColorPicker('#1e3a5f', v => {
+    const s = state.shapes.find(x => x.id === selectedShapeId);
+    if (s) { s.color = v; saveState(); renderShapes(); }
+  }, { compact: true });
+
+  document.getElementById('editCardPicker').appendChild(pickers.editCard.el);
+  document.getElementById('editTextPicker').appendChild(pickers.editText.el);
+  document.getElementById('bulkCardPicker').appendChild(pickers.bulkCard.el);
+  document.getElementById('bulkTextPicker').appendChild(pickers.bulkText.el);
+  document.getElementById('penColorMount').appendChild(pickers.pen.el);
+  document.getElementById('shapeColorMount').appendChild(pickers.shape.el);
+}
+
 function init() {
   loadState();
   document.getElementById('boardName').value = state.boardName || '';
   document.getElementById('sportSelect').value = state.sport || 'free';
+  initPickers();
   renderBoardBackground();
   renderMemberList();
   renderCards();
+  renderShapes();
   setupDrawCanvas();
   wireEvents();
+  updateShapeToolbar();
 }
 
 document.addEventListener('DOMContentLoaded', init);

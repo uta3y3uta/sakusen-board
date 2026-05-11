@@ -70,16 +70,15 @@
   </aside>
 
   <section class="board-area">
+
     <!-- Board toolbar (on board, not in settings) -->
     <div class="board-toolbar">
       <div class="bt-group">
-        <button id="btnDrawToggle" class="btn btn-bt" title="描画モード（ホワイトボード）切替">描画モード</button>
+        <button id="btnDrawToggle" class="btn btn-bt" title="描画モード（ホワイトボード）切替">描画</button>
         <div id="drawTools" class="draw-tools hidden">
           <button class="bt-mode active" data-mode="pen" title="ペン">ペン</button>
           <button class="bt-mode" data-mode="eraser" title="消しゴム">消しゴム</button>
-          <label class="bt-color" title="ペンの色">
-            <input type="color" id="penColor" value="#e02e2e">
-          </label>
+          <div class="bt-color-mount" id="penColorMount"></div>
           <label class="bt-width" title="ペンの太さ">
             <input type="range" id="penWidth" min="2" max="20" value="4">
           </label>
@@ -87,6 +86,17 @@
           <button id="btnClearStrokes" class="btn btn-bt-mini btn-danger" title="描画を全消去">描画消去</button>
         </div>
       </div>
+
+      <div class="bt-group bt-group-shapes">
+        <span class="bt-label-mini">図形：</span>
+        <button class="bt-shape" data-shape="rect" title="四角">■</button>
+        <button class="bt-shape" data-shape="circle" title="丸">●</button>
+        <button class="bt-shape" data-shape="triangle" title="三角">▲</button>
+        <button class="bt-shape" data-shape="arrow" title="矢印">→</button>
+        <button class="bt-shape" data-shape="double-arrow" title="両矢印">↔</button>
+        <button class="bt-shape" data-shape="line" title="線">／</button>
+      </div>
+
       <div class="bt-group bt-group-right">
         <button id="btnJsonSave" class="btn btn-bt" title="現在のボードをJSON形式でダウンロード">JSON保存</button>
         <button id="btnJsonLoad" class="btn btn-bt" title="JSONファイルを読み込む">JSON読込</button>
@@ -95,8 +105,23 @@
       </div>
     </div>
 
+    <!-- Shape edit toolbar (appears when a shape is selected) -->
+    <div class="shape-edit-toolbar hidden" id="shapeEditToolbar">
+      <span class="bt-label-mini">図形：</span>
+      <div class="bt-color-mount" id="shapeColorMount"></div>
+      <label class="bt-width" title="線の太さ">
+        <input type="range" id="shapeStrokeWidth" min="1" max="12" value="3">
+      </label>
+      <button id="btnShapeFill" class="btn btn-bt-mini" title="塗りつぶし切替">塗りつぶし</button>
+      <button id="btnShapeRotateL" class="btn btn-bt-mini" title="15度左回転">↶15°</button>
+      <button id="btnShapeRotateR" class="btn btn-bt-mini" title="15度右回転">↷15°</button>
+      <button id="btnShapeDuplicate" class="btn btn-bt-mini" title="複製">複製</button>
+      <button id="btnShapeDelete" class="btn btn-bt-mini btn-danger" title="削除">削除</button>
+    </div>
+
     <div id="board" class="board" data-sport="free">
       <svg id="boardBg" class="board-bg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="shapeLayer" class="shape-layer"></div>
       <canvas id="drawCanvas" class="draw-canvas"></canvas>
       <div id="cardLayer" class="card-layer"></div>
     </div>
@@ -192,8 +217,14 @@
           <option value="all">全員</option>
         </select>
       </label>
-      <label>カードの色：<input type="color" id="bulkCardColor" value="#ffffff"></label>
-      <label>文字色：<input type="color" id="bulkTextColor" value="#111111"></label>
+      <div class="field-row">
+        <span class="field-label">カードの色：</span>
+        <div class="color-picker-mount" id="bulkCardPicker"></div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">文字色：</span>
+        <div class="color-picker-mount" id="bulkTextPicker"></div>
+      </div>
       <label class="checkbox-label"><input type="checkbox" id="bulkShowNumber"> 番号（背番号）をカードに表示</label>
       <button id="btnApplyBulk" class="btn btn-primary">適用</button>
     </div>
@@ -236,8 +267,14 @@
           <option value="opponent">相手チーム</option>
         </select>
       </label>
-      <label>カードの色：<input type="color" id="editCardColor"></label>
-      <label>文字色：<input type="color" id="editTextColor"></label>
+      <div class="field-row">
+        <span class="field-label">カードの色：</span>
+        <div class="color-picker-mount" id="editCardPicker"></div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">文字色：</span>
+        <div class="color-picker-mount" id="editTextPicker"></div>
+      </div>
       <label class="checkbox-label"><input type="checkbox" id="editShowNumber"> 番号をカードに表示する</label>
       <label class="checkbox-label"><input type="checkbox" id="editOnBoard"> ボード上に表示する</label>
       <div class="edit-actions">

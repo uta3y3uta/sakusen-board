@@ -8,7 +8,7 @@ body {
   overflow: hidden;
 }
 
-/* ===== Toolbar ===== */
+/* ===== Header Toolbar ===== */
 .toolbar {
   display: flex;
   align-items: center;
@@ -159,7 +159,6 @@ body {
   background: #f7f9fc;
   border: 1px solid #e2e7ee;
   font-size: 13px;
-  transition: background 0.1s;
 }
 .member-item:hover { background: #eef4fc; }
 
@@ -169,12 +168,7 @@ body {
   gap: 4px;
   width: 56px;
 }
-.member-num-check {
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-  margin: 0;
-}
+.member-num-check { width: 14px; height: 14px; cursor: pointer; margin: 0; }
 .member-num {
   font-size: 12px;
   color: #5a6a7e;
@@ -209,11 +203,9 @@ body {
   color: #5a6a7e;
 }
 .member-toggle.on { background: #2d8cff; color: #fff; border-color: #2d8cff; }
-.member-edit {
-  background: none; border: none; cursor: pointer; font-size: 14px; color: #5a6a7e;
-}
+.member-edit { background: none; border: none; cursor: pointer; font-size: 14px; color: #5a6a7e; }
 
-/* ===== Board area ===== */
+/* ===== Board Area ===== */
 .board-area {
   flex: 1;
   position: relative;
@@ -225,7 +217,7 @@ body {
   gap: 8px;
 }
 
-/* Board toolbar (sits above the board) */
+/* Board toolbar (sits above board) */
 .board-toolbar {
   display: flex;
   justify-content: space-between;
@@ -240,14 +232,10 @@ body {
 }
 .bt-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bt-group-right { justify-content: flex-end; }
-.btn-bt {
-  font-size: 12px;
-  padding: 5px 12px;
-}
-.btn-bt-mini {
-  font-size: 11px;
-  padding: 3px 8px;
-}
+.btn-bt { font-size: 12px; padding: 5px 12px; }
+.btn-bt-mini { font-size: 11px; padding: 3px 8px; }
+.bt-label-mini { font-size: 11px; color: #5a6a7e; }
+
 .draw-tools {
   display: flex;
   align-items: center;
@@ -267,20 +255,108 @@ body {
   color: #5a6a7e;
 }
 .bt-mode.active { background: #2d8cff; color: #fff; border-color: #2d8cff; }
-.bt-color input[type="color"] {
-  width: 28px;
-  height: 24px;
-  border: 1px solid #c0c8d4;
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 0;
-  background: #fff;
-}
 .bt-width input[type="range"] { width: 80px; }
 
-#btnDrawToggle.active {
-  background: #e02e2e;
+#btnDrawToggle.active { background: #e02e2e; color: #fff; }
+
+.bt-group-shapes {
+  background: #f3f6fa;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.bt-shape {
+  background: #fff;
+  border: 1px solid #c0c8d4;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #1e3a5f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.bt-shape:hover { background: #e7f0fc; border-color: #2d8cff; }
+
+/* Shape edit toolbar (when shape selected) */
+.shape-edit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff8e7;
+  border: 1px solid #e5cf8d;
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  flex-wrap: wrap;
+}
+.shape-edit-toolbar.hidden { display: none; }
+
+/* ===== Color Picker ===== */
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding: 4px;
+  background: #f3f6fa;
+  border-radius: 6px;
+  border: 1px solid #e2e7ee;
+}
+.color-picker.compact { padding: 2px; gap: 3px; }
+.cp-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid #c0c8d4;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: transform 0.05s;
+}
+.color-picker.compact .cp-swatch { width: 18px; height: 18px; }
+.cp-swatch:hover { transform: scale(1.1); }
+.cp-swatch.active {
+  border: 2px solid #2d8cff;
+  box-shadow: 0 0 0 2px rgba(45,140,255,0.25);
+}
+.cp-custom {
+  background: linear-gradient(135deg, #ff5252 0%, #ffeb3b 33%, #4caf50 66%, #2196f3 100%);
+  font-size: 9px;
   color: #fff;
+  font-weight: 700;
+  text-align: center;
+  line-height: 22px;
+  text-shadow: 0 0 2px rgba(0,0,0,0.7);
+  overflow: hidden;
+}
+.color-picker.compact .cp-custom { line-height: 18px; font-size: 8px; }
+.cp-custom-input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0; left: 0;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  background: none;
+}
+
+.color-picker-mount, .bt-color-mount { display: inline-flex; }
+
+.field-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+}
+.field-label {
+  min-width: 80px;
+  padding-top: 6px;
 }
 
 /* ===== Board ===== */
@@ -291,21 +367,22 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   aspect-ratio: 5 / 3;
-  background: #4a8b3a;
+  background: #7a9974;
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 14px rgba(0,0,0,0.2);
 }
-.board[data-sport="free"] { background: #fbfcfe; }
-.board[data-sport="basketball"] { background: #c47a3b; }
-.board[data-sport="volleyball"] { background: #d9a96f; }
-.board[data-sport="baseball"] { background: #6ea84c; }
-.board[data-sport="soccer"] { background: #3e8a2e; }
-.board[data-sport="dodgeball"] { background: #b86b54; }
-.board[data-sport="track"] { background: #884a2c; }
-.board[data-sport="classroom"] { background: #f0e8d8; }
-.board[data-sport="assembly"] { background: #d8c8a8; }
-.board[data-sport="ground"] { background: #c9a87a; }
+/* Muted backgrounds so name cards stand out */
+.board[data-sport="free"] { background: #fcfdff; }
+.board[data-sport="soccer"] { background: #7a9974; }
+.board[data-sport="basketball"] { background: #c2a07e; }
+.board[data-sport="volleyball"] { background: #dac4a0; }
+.board[data-sport="baseball"] { background: #94a684; }
+.board[data-sport="dodgeball"] { background: #beaa97; }
+.board[data-sport="track"] { background: #b3937f; }
+.board[data-sport="classroom"] { background: #f2ecdb; }
+.board[data-sport="assembly"] { background: #ddd0b3; }
+.board[data-sport="ground"] { background: #cdbb99; }
 
 .board-bg {
   position: absolute;
@@ -313,6 +390,10 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+.shape-layer {
+  position: absolute;
+  inset: 0;
 }
 .draw-canvas {
   position: absolute;
@@ -322,12 +403,10 @@ body {
   pointer-events: none;
   cursor: crosshair;
 }
-.board.draw-mode .draw-canvas {
-  pointer-events: auto;
-}
-.board.draw-mode .card-layer {
-  pointer-events: none;
-}
+.board.draw-mode .draw-canvas { pointer-events: auto; }
+.board.draw-mode .card-layer { pointer-events: none; }
+.board.draw-mode .shape-layer { pointer-events: none; }
+
 .card-layer {
   position: absolute;
   inset: 0;
@@ -379,9 +458,60 @@ body {
   opacity: 0.75;
   margin-top: 2px;
 }
-.card.empty .card-name {
-  color: #888;
-  font-style: italic;
+.card.empty .card-name { color: #888; font-style: italic; }
+
+/* ===== Shapes ===== */
+.shape {
+  position: absolute;
+  transform: translate(-50%, -50%) rotate(0deg);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.shape.dragging { cursor: grabbing; }
+.shape svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.shape.selected .shape-bbox {
+  position: absolute;
+  inset: -2px;
+  border: 1.5px dashed #2d8cff;
+  pointer-events: none;
+}
+.shape-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 2px solid #2d8cff;
+  border-radius: 50%;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.shape-handle.handle-resize {
+  bottom: -9px;
+  right: -9px;
+}
+.shape-handle.handle-rotate {
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  border-color: #16c79a;
+}
+.shape-handle.handle-rotate::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1.5px;
+  height: 14px;
+  background: #16c79a;
+  transform: translateX(-50%);
 }
 
 /* ===== Modals ===== */
@@ -405,7 +535,7 @@ body {
   overflow-y: auto;
   box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
-.modal-small { max-width: 400px; }
+.modal-small { max-width: 420px; }
 .modal-header {
   display: flex;
   align-items: center;
@@ -436,7 +566,6 @@ body {
   color: #333;
 }
 .modal-body input[type="text"],
-.modal-body input[type="color"],
 .modal-body select,
 .modal-body textarea {
   font-size: 13px;
