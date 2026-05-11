@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作戦ボード</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+
+<header class="toolbar">
+  <div class="toolbar-left">
+    <h1 class="app-title">作戦ボード</h1>
+    <input type="text" id="boardName" class="board-name" placeholder="作戦ボード名">
+  </div>
+
+  <div class="toolbar-center">
+    <label class="tb-label">デザイン
+      <select id="sportSelect">
+        <optgroup label="スポーツ">
+          <option value="soccer">サッカー</option>
+          <option value="basketball">バスケットボール</option>
+          <option value="volleyball">バレーボール</option>
+          <option value="baseball">野球</option>
+          <option value="dodgeball">ドッジボール</option>
+          <option value="track">陸上トラック</option>
+        </optgroup>
+        <optgroup label="学校">
+          <option value="classroom">教室</option>
+          <option value="assembly">体育館・集会</option>
+          <option value="ground">グラウンド</option>
+        </optgroup>
+        <optgroup label="その他">
+          <option value="free">フリー（白板）</option>
+        </optgroup>
+      </select>
+    </label>
+  </div>
+
+  <div class="toolbar-right">
+    <button id="btnImport" class="btn btn-primary">取り込み</button>
+    <button id="btnAddBlank" class="btn">空白カード追加</button>
+    <button id="btnBulkColor" class="btn">一括色変更</button>
+    <button id="btnShare" class="btn btn-share">公開URLの共有</button>
+    <button id="btnClear" class="btn btn-danger">全消去</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <aside class="sidebar">
+    <h2 class="sidebar-title">メンバー一覧</h2>
+    <div class="team-tabs">
+      <button class="team-tab active" data-team="own">自チーム</button>
+      <button class="team-tab" data-team="opponent">相手チーム</button>
+    </div>
+    <div class="member-actions">
+      <button id="btnAddMember" class="btn btn-small">＋ 名前を追加</button>
+      <button id="btnPlaceAll" class="btn btn-small">全員をボードへ</button>
+      <button id="btnRemoveAll" class="btn btn-small">全員外す</button>
+    </div>
+    <div class="list-header">
+      <span class="lh-num" title="番号表示の一括切替">№</span>
+      <span class="lh-name">名前 / その他</span>
+      <span class="lh-act">配置</span>
+    </div>
+    <ul id="memberList" class="member-list"></ul>
+  </aside>
+
+  <section class="board-area">
+    <!-- Board toolbar (on board, not in settings) -->
+    <div class="board-toolbar">
+      <div class="bt-group">
+        <button id="btnDrawToggle" class="btn btn-bt" title="描画モード（ホワイトボード）切替">描画モード</button>
+        <div id="drawTools" class="draw-tools hidden">
+          <button class="bt-mode active" data-mode="pen" title="ペン">ペン</button>
+          <button class="bt-mode" data-mode="eraser" title="消しゴム">消しゴム</button>
+          <label class="bt-color" title="ペンの色">
+            <input type="color" id="penColor" value="#e02e2e">
+          </label>
+          <label class="bt-width" title="ペンの太さ">
+            <input type="range" id="penWidth" min="2" max="20" value="4">
+          </label>
+          <button id="btnUndoStroke" class="btn btn-bt-mini" title="一筆戻す">↶ 戻す</button>
+          <button id="btnClearStrokes" class="btn btn-bt-mini btn-danger" title="描画を全消去">描画消去</button>
+        </div>
+      </div>
+      <div class="bt-group bt-group-right">
+        <button id="btnJsonSave" class="btn btn-bt" title="現在のボードをJSON形式でダウンロード">JSON保存</button>
+        <button id="btnJsonLoad" class="btn btn-bt" title="JSONファイルを読み込む">JSON読込</button>
+        <input type="file" id="jsonInput" accept=".json,application/json" hidden>
+        <button id="btnJpegSave" class="btn btn-bt btn-primary" title="ボードを画像として保存">JPEG保存</button>
+      </div>
+    </div>
+
+    <div id="board" class="board" data-sport="free">
+      <svg id="boardBg" class="board-bg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+      <canvas id="drawCanvas" class="draw-canvas"></canvas>
+      <div id="cardLayer" class="card-layer"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Import Modal -->
+<div id="importModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>名簿を取り込む</h2>
+      <button class="modal-close" data-close="importModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="import-tabs">
+        <button class="import-tab active" data-tab="paste">コピペ</button>
+        <button class="import-tab" data-tab="excel">Excelファイル</button>
+        <button class="import-tab" data-tab="gsheet">Googleスプレッドシート</button>
+      </div>
+
+      <div class="import-panel" data-panel="paste">
+        <p class="hint">名簿をそのまま貼り付けてください。1行に1人。タブ・カンマで区切ると複数列を取り込めます（例：番号 ＜tab＞ 氏名 ＜tab＞ ポジション）。番号列は省略可。</p>
+        <textarea id="pasteInput" rows="10" placeholder="1&#9;鈴木優太&#9;キャプテン&#10;2&#9;田中太郎&#9;副キャプテン&#10;..."></textarea>
+        <div class="import-options">
+          <label>取り込み先：
+            <select id="pasteTeam">
+              <option value="own">自チーム</option>
+              <option value="opponent">相手チーム</option>
+            </select>
+          </label>
+          <label>区切り：
+            <select id="pasteDelimiter">
+              <option value="auto">自動判定</option>
+              <option value="tab">タブ</option>
+              <option value="comma">カンマ</option>
+              <option value="space">スペース</option>
+            </select>
+          </label>
+          <label>1列目の扱い：
+            <select id="pasteFirstCol">
+              <option value="auto">自動判定</option>
+              <option value="name">氏名</option>
+              <option value="number">番号（背番号）</option>
+            </select>
+          </label>
+        </div>
+        <button id="btnDoPasteImport" class="btn btn-primary">取り込む</button>
+      </div>
+
+      <div class="import-panel hidden" data-panel="excel">
+        <p class="hint">Excel（.xlsx / .xls）ファイルを選択してください。1列目が数字なら番号として扱い，それ以降の列を氏名・その他として取り込みます（ヘッダー行は自動でスキップ）。</p>
+        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv">
+        <div class="import-options">
+          <label>取り込み先：
+            <select id="excelTeam">
+              <option value="own">自チーム</option>
+              <option value="opponent">相手チーム</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="import-panel hidden" data-panel="gsheet">
+        <p class="hint">Googleスプレッドシートを「ウェブに公開」→「カンマ区切りの値（.csv）」を選び，発行されたURLを貼り付けてください。または，スプレッドシートを開いて範囲を選択してコピー→「コピペ」タブに貼り付けても取り込めます。</p>
+        <input type="text" id="gsheetUrl" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+        <div class="import-options">
+          <label>取り込み先：
+            <select id="gsheetTeam">
+              <option value="own">自チーム</option>
+              <option value="opponent">相手チーム</option>
+            </select>
+          </label>
+        </div>
+        <button id="btnDoGsheetImport" class="btn btn-primary">取り込む</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Color Modal -->
+<div id="bulkColorModal" class="modal hidden">
+  <div class="modal-content modal-small">
+    <div class="modal-header">
+      <h2>一括色変更</h2>
+      <button class="modal-close" data-close="bulkColorModal">×</button>
+    </div>
+    <div class="modal-body">
+      <label>対象：
+        <select id="bulkTarget">
+          <option value="own">自チーム</option>
+          <option value="opponent">相手チーム</option>
+          <option value="all">全員</option>
+        </select>
+      </label>
+      <label>カードの色：<input type="color" id="bulkCardColor" value="#ffffff"></label>
+      <label>文字色：<input type="color" id="bulkTextColor" value="#111111"></label>
+      <label class="checkbox-label"><input type="checkbox" id="bulkShowNumber"> 番号（背番号）をカードに表示</label>
+      <button id="btnApplyBulk" class="btn btn-primary">適用</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div id="shareModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>公開URLの共有</h2>
+      <button class="modal-close" data-close="shareModal">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">この作戦ボードを共有する公開URLです。受け取った人がブラウザで開くと，全く同じ配置・色・描画の作戦ボードを閲覧できます。</p>
+      <textarea id="shareUrl" rows="4" readonly></textarea>
+      <div class="share-actions">
+        <button id="btnCopyShare" class="btn btn-primary">URLをコピー</button>
+        <span id="copyStatus" class="copy-status"></span>
+      </div>
+      <p class="hint small">GitHub Pagesに公開済みの場合は，このURLをそのまま誰にでも共有できます。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Member Edit Modal -->
+<div id="memberEditModal" class="modal hidden">
+  <div class="modal-content modal-small">
+    <div class="modal-header">
+      <h2>カード編集</h2>
+      <button class="modal-close" data-close="memberEditModal">×</button>
+    </div>
+    <div class="modal-body">
+      <label>番号：<input type="text" id="editNumber" placeholder="例：10"></label>
+      <label>氏名：<input type="text" id="editName"></label>
+      <label>その他：<input type="text" id="editOther" placeholder="例：キャプテン"></label>
+      <label>チーム：
+        <select id="editTeam">
+          <option value="own">自チーム</option>
+          <option value="opponent">相手チーム</option>
+        </select>
+      </label>
+      <label>カードの色：<input type="color" id="editCardColor"></label>
+      <label>文字色：<input type="color" id="editTextColor"></label>
+      <label class="checkbox-label"><input type="checkbox" id="editShowNumber"> 番号をカードに表示する</label>
+      <label class="checkbox-label"><input type="checkbox" id="editOnBoard"> ボード上に表示する</label>
+      <div class="edit-actions">
+        <button id="btnSaveEdit" class="btn btn-primary">保存</button>
+        <button id="btnDeleteMember" class="btn btn-danger">削除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
