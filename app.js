@@ -1613,10 +1613,7 @@ function wireEvents() {
     renderShapes();
   });
   document.getElementById('btnShapeFill').addEventListener('click', toggleSelectedShapeFill);
-  document.getElementById('btnShapeRotateL').addEventListener('click', () => rotateSelectedShape(-15));
-  document.getElementById('btnShapeRotateR').addEventListener('click', () => rotateSelectedShape(15));
   document.getElementById('btnShapeDuplicate').addEventListener('click', duplicateSelectedShape);
-  document.getElementById('btnShapeDelete').addEventListener('click', deleteSelectedShape);
 
   // Marquee select: click+drag on empty board area draws a selection rectangle
   // Cards inside the rectangle become a group (move together / delete together)
