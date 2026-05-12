@@ -1,5 +1,5 @@
 // ============================================================
-// フォーメーションメーカー
+// ならびっこ
 // ============================================================
 
 const STORAGE_KEY = 'sakusen-board-v3';
@@ -1278,7 +1278,7 @@ async function doGsheetImport() {
 // ============================================================
 function jsonSave() {
   const data = JSON.stringify(state, null, 2);
-  const name = (state.boardName || 'formation').replace(/[^\w\-ぁ-んァ-ヶ一-龯]/g, '_');
+  const name = (state.boardName || 'narabikko').replace(/[^\w\-ぁ-んァ-ヶ一-龯]/g, '_');
   downloadFile(`${name}_${timestamp()}.json`, data, 'application/json');
 }
 
@@ -1287,7 +1287,7 @@ function jsonLoad(file) {
   reader.onload = (e) => {
     try {
       const parsed = JSON.parse(e.target.result);
-      if (!parsed.members) throw new Error('不正なフォーメーションJSONです');
+      if (!parsed.members) throw new Error('不正な「ならびっこ」JSONです');
       if (!confirm('現在のボードを読み込みデータで置き換えます。よろしいですか？')) return;
       state = Object.assign({
         boardName: '', sport: 'free', activeTeam: 'own',
@@ -1330,7 +1330,7 @@ async function jpegSave() {
     });
     canvas.toBlob((blob) => {
       if (!blob) { alert('画像の生成に失敗しました。'); return; }
-      const name = (state.boardName || 'formation').replace(/[^\w\-ぁ-んァ-ヶ一-龯]/g, '_');
+      const name = (state.boardName || 'narabikko').replace(/[^\w\-ぁ-んァ-ヶ一-龯]/g, '_');
       downloadFile(`${name}_${timestamp()}.jpg`, blob);
     }, 'image/jpeg', 0.92);
   } catch (err) {
