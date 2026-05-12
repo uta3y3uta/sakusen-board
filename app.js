@@ -356,7 +356,7 @@ function renderMemberList() {
     li.className = 'member-item';
     li.style.opacity = '0.6';
     li.style.justifyContent = 'center';
-    li.textContent = 'メンバーがいません。「取り込み」か「＋名前を追加」で追加してください。';
+    li.textContent = 'メンバーがいません。「取込」か「＋名前を追加」で追加してください。';
     ul.appendChild(li);
     return;
   }
@@ -1200,11 +1200,19 @@ function parsePasted(text, delimiter, firstColMode) {
     let parts;
     if (delimiter === 'tab') parts = line.split('\t');
     else if (delimiter === 'comma') parts = line.split(',');
-    else if (delimiter === 'space') parts = line.split(/\s+/);
-    else {
+    else if (delimiter === 'space') {
+      // 明示的にスペース区切り指定のときのみ，スペースで分割する
+      parts = line.split(/\s+/);
+    } else {
+      // 自動判定：タブ・カンマがあればそれで区切る。
+      // それ以外は氏名内のスペース（例：「鈴木 優太」）を尊重し，
+      // 先頭に「数字＋スペース」がある場合のみ番号と氏名に分ける。
       if (line.includes('\t')) parts = line.split('\t');
       else if (line.includes(',')) parts = line.split(',');
-      else parts = line.split(/\s+/);
+      else {
+        const m = line.match(/^(\d{1,3})[\s\u3000]+(.+)$/);
+        parts = m ? [m[1], m[2]] : [line];
+      }
     }
     parts = parts.map(p => p.trim());
 
