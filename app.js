@@ -41,7 +41,7 @@ let state = {
 
 let editingMemberId = null;
 let selectedShapeId = null;
-let selectedMemberId = null;
+let selectedMemberIds = []; // array of member ids (group selection)
 let selectedKind = null; // 'card' | 'shape' | null
 
 const pickers = {};
@@ -481,7 +481,7 @@ function renderCards() {
     const card = document.createElement('div');
     card.className = 'card team-' + m.team;
     if (!m.name && !m.other) card.classList.add('empty');
-    if (m.id === selectedMemberId) card.classList.add('selected');
+    if (selectedMemberIds.includes(m.id)) card.classList.add('selected');
     card.dataset.id = m.id;
     card.style.left = (m.x * 100) + '%';
     card.style.top = (m.y * 100) + '%';
@@ -519,7 +519,8 @@ function renderCards() {
 }
 
 function attachCardDrag(card, member) {
-  let startX, startY, originX, originY;
+  let startX, startY;
+  let groupOrigins = []; // [{id, x, y}]
   let dragging = false;
 
   const onDown = (e) => {
@@ -528,12 +529,23 @@ function attachCardDrag(card, member) {
     e.stopPropagation();
     dragging = true;
     card.classList.add('dragging');
-    selectCard(member.id);
+
+    // If this card is part of a group, drag the whole group.
+    // Otherwise, switch to single selection.
+    if (!selectedMemberIds.includes(member.id)) {
+      selectCard(member.id);
+    }
+    const ids = selectedMemberIds.length > 0 ? [...selectedMemberIds] : [member.id];
+    groupOrigins = ids
+      .map(id => state.members.find(m => m.id === id))
+      .filter(Boolean)
+      .filter(m => m.onBoard)
+      .map(m => ({ id: m.id, x: m.x, y: m.y }));
+
     const p = e.touches ? e.touches[0] : e;
     startX = p.clientX;
     startY = p.clientY;
-    originX = member.x;
-    originY = member.y;
+
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
     document.addEventListener('touchmove', onMove, { passive: false });
@@ -546,13 +558,31 @@ function attachCardDrag(card, member) {
     const p = e.touches ? e.touches[0] : e;
     const board = document.getElementById('board');
     const rect = board.getBoundingClientRect();
-    const dx = (p.clientX - startX) / rect.width;
-    const dy = (p.clientY - startY) / rect.height;
-    const nx = clamp(originX + dx, 0, 1);
-    const ny = clamp(originY + dy, 0, 1);
-    member.x = nx; member.y = ny;
-    card.style.left = (nx * 100) + '%';
-    card.style.top = (ny * 100) + '%';
+    let dx = (p.clientX - startX) / rect.width;
+    let dy = (p.clientY - startY) / rect.height;
+
+    // Clamp delta so no member in the group goes out of bounds
+    let minDx = -1, maxDx = 1, minDy = -1, maxDy = 1;
+    groupOrigins.forEach(o => {
+      minDx = Math.max(minDx, -o.x);
+      maxDx = Math.min(maxDx, 1 - o.x);
+      minDy = Math.max(minDy, -o.y);
+      maxDy = Math.min(maxDy, 1 - o.y);
+    });
+    dx = clamp(dx, minDx, maxDx);
+    dy = clamp(dy, minDy, maxDy);
+
+    groupOrigins.forEach(o => {
+      const m = state.members.find(x => x.id === o.id);
+      if (!m) return;
+      m.x = o.x + dx;
+      m.y = o.y + dy;
+      const el = document.querySelector(`.card[data-id="${o.id}"]`);
+      if (el) {
+        el.style.left = (m.x * 100) + '%';
+        el.style.top = (m.y * 100) + '%';
+      }
+    });
   };
 
   const onUp = () => {
@@ -591,10 +621,10 @@ function makeShape(type) {
   if (type === 'text') {
     s.content = 'テキスト';
     s.fontKey = 'gothic';
-    s.fontSize = 0.032; // 3.2% of board height (~19px on 600px board)
+    s.fontSize = 0.028; // ~17px on 600px board (close to name card font)
     s.color = '#3d2f1f';
-    s.w = 0.10;
-    s.h = 0.05;
+    s.w = 0.08;  // ~80px wide (close to name card)
+    s.h = 0.05;  // ~30px tall
   }
   return s;
 }
@@ -645,6 +675,9 @@ function renderShapes() {
     div.style.top = (s.y * 100) + '%';
     div.style.transform = `translate(-50%, -50%) rotate(${s.rotation}deg)`;
 
+    div.style.width = (s.w * rect.width) + 'px';
+    div.style.height = (s.h * rect.height) + 'px';
+
     if (s.type === 'text') {
       const span = document.createElement('span');
       span.className = 'text-content';
@@ -655,8 +688,6 @@ function renderShapes() {
       div.appendChild(span);
       div.addEventListener('dblclick', (e) => { e.stopPropagation(); editTextShapeContent(s.id); });
     } else {
-      div.style.width = (s.w * rect.width) + 'px';
-      div.style.height = (s.h * rect.height) + 'px';
       div.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${shapeInnerSvg(s)}</svg>`;
     }
 
@@ -664,12 +695,10 @@ function renderShapes() {
       const bbox = document.createElement('div');
       bbox.className = 'shape-bbox';
       div.appendChild(bbox);
-      if (s.type !== 'text') {
-        const hResize = document.createElement('div');
-        hResize.className = 'shape-handle handle-resize';
-        hResize.dataset.handle = 'resize';
-        div.appendChild(hResize);
-      }
+      const hResize = document.createElement('div');
+      hResize.className = 'shape-handle handle-resize';
+      hResize.dataset.handle = 'resize';
+      div.appendChild(hResize);
       const hRotate = document.createElement('div');
       hRotate.className = 'shape-handle handle-rotate';
       hRotate.dataset.handle = 'rotate';
@@ -776,7 +805,7 @@ function attachShapeEvents(div, shape) {
 
 function selectShape(id) {
   selectedKind = 'shape';
-  selectedMemberId = null;
+  selectedMemberIds = [];
   document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
   if (selectedShapeId === id) return;
   selectedShapeId = id;
@@ -793,38 +822,149 @@ function deselectShape() {
 }
 
 function selectCard(memberId) {
+  selectCards([memberId]);
+}
+
+function selectCards(ids) {
   selectedKind = 'card';
-  selectedMemberId = memberId;
+  selectedMemberIds = Array.isArray(ids) ? [...ids] : [];
   if (selectedShapeId) {
     selectedShapeId = null;
     renderShapes();
     updateShapeToolbar();
   }
   document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
-  const el = document.querySelector(`.card[data-id="${memberId}"]`);
-  if (el) el.classList.add('selected');
+  selectedMemberIds.forEach(id => {
+    const el = document.querySelector(`.card[data-id="${id}"]`);
+    if (el) el.classList.add('selected');
+  });
 }
 
 function deselectCard() {
   if (selectedKind === 'card') selectedKind = null;
-  selectedMemberId = null;
+  selectedMemberIds = [];
   document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
 }
 
 function deleteSelected() {
   if (selectedKind === 'shape' && selectedShapeId) {
     deleteSelectedShape();
-  } else if (selectedKind === 'card' && selectedMemberId) {
-    const m = state.members.find(x => x.id === selectedMemberId);
-    if (m) {
-      m.onBoard = false;
-      saveState();
-      renderMemberList();
-      renderCards();
-    }
-    selectedMemberId = null;
+  } else if (selectedKind === 'card' && selectedMemberIds.length > 0) {
+    selectedMemberIds.forEach(id => {
+      const m = state.members.find(x => x.id === id);
+      if (m) m.onBoard = false;
+    });
+    saveState();
+    renderMemberList();
+    renderCards();
+    selectedMemberIds = [];
     selectedKind = null;
   }
+}
+
+// ============================================================
+// Marquee (rubber-band) selection on the board
+// ============================================================
+function setupMarqueeSelect() {
+  const boardEl = document.getElementById('board');
+  let marquee = null;
+  let startNorm = null; // { x, y } in 0-1 board coords
+  let moved = false;
+
+  const isEmptyArea = (target) => {
+    const id = target.id;
+    if (id === 'board' || id === 'boardBg' || id === 'shapeLayer' || id === 'cardLayer') return true;
+    // Clicks on the SVG background's child elements (rects, lines, etc.) also count as empty
+    if (target.closest && target.closest('#boardBg') && !target.closest('.card, .shape')) return true;
+    return false;
+  };
+
+  const getNorm = (e) => {
+    const r = boardEl.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return {
+      x: clamp((p.clientX - r.left) / r.width, 0, 1),
+      y: clamp((p.clientY - r.top) / r.height, 0, 1)
+    };
+  };
+
+  const onDown = (e) => {
+    if (boardEl.classList.contains('draw-mode')) return;
+    if (!isEmptyArea(e.target)) return;
+    e.preventDefault();
+
+    // Empty-area mousedown: immediately drop shape selection
+    deselectShape();
+
+    startNorm = getNorm(e);
+    moved = false;
+
+    marquee = document.createElement('div');
+    marquee.className = 'board-marquee';
+    marquee.style.left = (startNorm.x * 100) + '%';
+    marquee.style.top = (startNorm.y * 100) + '%';
+    marquee.style.width = '0';
+    marquee.style.height = '0';
+    boardEl.appendChild(marquee);
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+  };
+
+  const onMove = (e) => {
+    if (!marquee || !startNorm) return;
+    e.preventDefault();
+    const cur = getNorm(e);
+    const x1 = Math.min(startNorm.x, cur.x);
+    const y1 = Math.min(startNorm.y, cur.y);
+    const x2 = Math.max(startNorm.x, cur.x);
+    const y2 = Math.max(startNorm.y, cur.y);
+    marquee.style.left = (x1 * 100) + '%';
+    marquee.style.top = (y1 * 100) + '%';
+    marquee.style.width = ((x2 - x1) * 100) + '%';
+    marquee.style.height = ((y2 - y1) * 100) + '%';
+    if (Math.abs(cur.x - startNorm.x) > 0.005 || Math.abs(cur.y - startNorm.y) > 0.005) {
+      moved = true;
+    }
+  };
+
+  const onUp = (e) => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+    if (!marquee || !startNorm) return;
+
+    if (moved) {
+      // Read final rectangle from the marquee div, then capture cards inside
+      const cur = e.changedTouches ? getNorm({ touches: [e.changedTouches[0]] }) : getNorm(e);
+      const x1 = Math.min(startNorm.x, cur.x);
+      const y1 = Math.min(startNorm.y, cur.y);
+      const x2 = Math.max(startNorm.x, cur.x);
+      const y2 = Math.max(startNorm.y, cur.y);
+      const captured = state.members
+        .filter(m => m.onBoard && m.x >= x1 && m.x <= x2 && m.y >= y1 && m.y <= y2)
+        .map(m => m.id);
+      if (captured.length > 0) {
+        selectCards(captured);
+      } else {
+        deselectCard();
+      }
+    } else {
+      // Plain click on empty area → deselect everything
+      deselectCard();
+    }
+
+    marquee.remove();
+    marquee = null;
+    startNorm = null;
+    moved = false;
+  };
+
+  boardEl.addEventListener('mousedown', onDown);
+  boardEl.addEventListener('touchstart', onDown, { passive: false });
 }
 
 function updateShapeToolbar() {
@@ -860,7 +1000,7 @@ function addShape(type) {
   state.shapes.push(s);
   selectedShapeId = s.id;
   selectedKind = 'shape';
-  selectedMemberId = null;
+  selectedMemberIds = [];
   document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
   saveState();
   renderShapes();
@@ -1478,21 +1618,16 @@ function wireEvents() {
   document.getElementById('btnShapeDuplicate').addEventListener('click', duplicateSelectedShape);
   document.getElementById('btnShapeDelete').addEventListener('click', deleteSelectedShape);
 
-  // Click on empty area of board → deselect both shape and card
-  document.getElementById('board').addEventListener('mousedown', (e) => {
-    if (e.target.id === 'board' || e.target.id === 'boardBg' ||
-        e.target.id === 'shapeLayer' || e.target.id === 'cardLayer') {
-      deselectShape();
-      deselectCard();
-    }
-  });
+  // Marquee select: click+drag on empty board area draws a selection rectangle
+  // Cards inside the rectangle become a group (move together / delete together)
+  setupMarqueeSelect();
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { deselectShape(); deselectCard(); }
     if ((e.key === 'Delete' || e.key === 'Backspace') &&
         document.activeElement.tagName !== 'INPUT' &&
         document.activeElement.tagName !== 'TEXTAREA') {
       if (selectedKind === 'shape' && selectedShapeId) { e.preventDefault(); deleteSelectedShape(); }
-      else if (selectedKind === 'card' && selectedMemberId) { e.preventDefault(); deleteSelected(); }
+      else if (selectedKind === 'card' && selectedMemberIds.length > 0) { e.preventDefault(); deleteSelected(); }
     }
   });
 

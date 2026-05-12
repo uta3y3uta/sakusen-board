@@ -731,14 +731,10 @@ body {
   transform: translateX(-50%);
 }
 
-/* Text shape */
+/* Text shape — sized explicitly via s.w / s.h like other shapes; font scales independently */
 .shape-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
   pointer-events: auto;
+  overflow: hidden;
 }
 .text-content {
   width: 100%;
@@ -751,7 +747,17 @@ body {
   line-height: 1.2;
   font-weight: 600;
   user-select: none;
-  padding: 2px 6px;
+  padding: 2px 4px;
+}
+
+/* Marquee (rubber-band) selection rectangle */
+.board-marquee {
+  position: absolute;
+  border: 1.5px dashed var(--accent-blue);
+  background: rgba(45, 140, 255, 0.08);
+  pointer-events: none;
+  z-index: 200;
+  border-radius: 2px;
 }
 
 /* ===== Modals ===== */
