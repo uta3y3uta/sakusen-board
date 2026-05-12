@@ -363,6 +363,37 @@ function renderMemberList() {
   filtered.forEach((m, idx) => {
     const li = document.createElement('li');
     li.className = 'member-item';
+    li.dataset.id = m.id;
+    li.draggable = true;
+    li.addEventListener('dragstart', (e) => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', m.id);
+      li.classList.add('dragging');
+    });
+    li.addEventListener('dragend', () => {
+      li.classList.remove('dragging');
+      document.querySelectorAll('.member-item.drag-over-top, .member-item.drag-over-bottom')
+        .forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+    });
+    li.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = li.getBoundingClientRect();
+      const above = (e.clientY - rect.top) < rect.height / 2;
+      li.classList.toggle('drag-over-top', above);
+      li.classList.toggle('drag-over-bottom', !above);
+    });
+    li.addEventListener('dragleave', () => {
+      li.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    li.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const srcId = e.dataTransfer.getData('text/plain');
+      const rect = li.getBoundingClientRect();
+      const above = (e.clientY - rect.top) < rect.height / 2;
+      li.classList.remove('drag-over-top', 'drag-over-bottom');
+      if (srcId && srcId !== m.id) reorderMembers(srcId, m.id, above ? 'before' : 'after');
+    });
 
     const numCell = document.createElement('div');
     numCell.className = 'member-num-cell';
@@ -419,6 +450,22 @@ function renderMemberList() {
     li.append(numCell, swatch, nameWrap, toggle, edit);
     ul.appendChild(li);
   });
+}
+
+function reorderMembers(srcId, dstId, position) {
+  const srcIdx = state.members.findIndex(x => x.id === srcId);
+  if (srcIdx === -1) return;
+  const [src] = state.members.splice(srcIdx, 1);
+  let dstIdx = state.members.findIndex(x => x.id === dstId);
+  if (dstIdx === -1) {
+    state.members.push(src);
+  } else {
+    if (position === 'after') dstIdx += 1;
+    state.members.splice(dstIdx, 0, src);
+  }
+  saveState();
+  renderMemberList();
+  renderCards();
 }
 
 // ============================================================
@@ -544,10 +591,10 @@ function makeShape(type) {
   if (type === 'text') {
     s.content = 'テキスト';
     s.fontKey = 'gothic';
-    s.fontSize = 0.06; // 6% of board height
+    s.fontSize = 0.032; // 3.2% of board height (~19px on 600px board)
     s.color = '#3d2f1f';
-    s.w = 0.20;
-    s.h = 0.08;
+    s.w = 0.10;
+    s.h = 0.05;
   }
   return s;
 }
@@ -797,7 +844,7 @@ function updateShapeToolbar() {
     shapeOnly.classList.add('hidden');
     textOnly.classList.remove('hidden');
     document.getElementById('textFontFamily').value = s.fontKey || 'gothic';
-    document.getElementById('textFontSize').value = Math.round((s.fontSize || 0.06) * 1000);
+    document.getElementById('textFontSize').value = Math.round((s.fontSize || 0.032) * 1000);
     document.getElementById('btnEditText').classList.remove('hidden');
   } else {
     shapeOnly.classList.remove('hidden');
@@ -1189,7 +1236,6 @@ function openEditModal(memberId) {
   const m = state.members.find(x => x.id === memberId);
   if (!m) return;
   editingMemberId = memberId;
-  document.getElementById('editNumber').value = m.number || '';
   document.getElementById('editName').value = m.name;
   document.getElementById('editOther').value = m.other;
   document.getElementById('editTeam').value = m.team;
@@ -1204,7 +1250,6 @@ function saveEdit() {
   if (!editingMemberId) return;
   const m = state.members.find(x => x.id === editingMemberId);
   if (!m) return;
-  m.number = document.getElementById('editNumber').value.trim();
   m.name = document.getElementById('editName').value;
   m.other = document.getElementById('editOther').value;
   m.team = document.getElementById('editTeam').value;
@@ -1474,8 +1519,6 @@ function wireEvents() {
     if (e.target.files[0]) jsonLoad(e.target.files[0]);
     e.target.value = '';
   });
-
-  document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelected);
 
   // Modals
   document.querySelectorAll('.modal-close').forEach(btn => {

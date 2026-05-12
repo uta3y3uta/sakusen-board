@@ -321,9 +321,26 @@ body {
   background: var(--bg-subtle);
   border: 1px solid var(--border-soft);
   font-size: 13px;
-  transition: all 0.15s;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  cursor: grab;
+  position: relative;
 }
 .member-item:hover { background: var(--bg-soft); border-color: var(--border-strong); }
+.member-item.dragging { opacity: 0.4; cursor: grabbing; }
+.member-item.drag-over-top::before,
+.member-item.drag-over-bottom::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.member-item.drag-over-top::before { top: -3px; }
+.member-item.drag-over-bottom::after { bottom: -3px; }
+.member-item button { cursor: pointer; }
 
 .member-num-cell {
   display: flex;
