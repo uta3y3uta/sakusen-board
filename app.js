@@ -207,11 +207,9 @@ const SPORT_SVGS = {
     <rect width="1000" height="600" fill="url(#grid)"/>
   `,
 
-  // 2. 校庭：外枠＋トラック（中央の朝礼台は撤去）
+  // 2. 校庭：トラックのみ（外枠の長方形・点線トラックは撤去）
   ground: () => `
-    <rect x="40" y="40" width="920" height="520" rx="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <rect x="100" y="110" width="800" height="380" rx="190" ry="190" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="150" y="155" width="700" height="290" rx="145" ry="145" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,5"/>
   `,
 
   // 3. 体育館：外枠＋横長ステージ（センターラインは撤去）
@@ -221,11 +219,11 @@ const SPORT_SVGS = {
     <line x1="200" y1="74" x2="800" y2="74" stroke="${STROKE_SOFT}" stroke-width="1"/>
   `,
 
-  // 4. 教室：外枠＋薄い黒板（教卓は撤去）
+  // 4. 教室：外枠＋黒板（壁に貼り付け・さらに薄く）
   classroom: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="220" y="60" width="560" height="70" fill="rgba(46,68,52,0.35)" stroke="${STROKE_SOFT}" stroke-width="1.5" rx="4"/>
-    <rect x="225" y="65" width="550" height="60" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1" rx="2"/>
+    <rect x="220" y="40" width="560" height="60" fill="rgba(46,68,52,0.18)" stroke="${STROKE_SOFT}" stroke-width="1" rx="0"/>
+    <rect x="225" y="44" width="550" height="52" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
   `,
 
   // 5. ゴール型1（サッカー）：ピッチ枠／センターライン／センターサークル／ペナルティエリア／ゴールエリア／PKマーク／ペナルティアーク／ゴール／コーナー
@@ -296,17 +294,14 @@ const SPORT_SVGS = {
     <circle cx="910" cy="300" r="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
   `,
 
-  // 9. ネット型（バレーボール）：コート枠／ネット／アタックライン
+  // 9. ネット型（バレーボール）：コート枠／ネットのみ（アタックラインの点線は撤去）
   volleyball: () => `
     <rect x="60" y="100" width="880" height="400" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="80" x2="500" y2="520" stroke="${STROKE}" stroke-width="4"/>
-    <line x1="280" y1="100" x2="280" y2="500" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
-    <line x1="720" y1="100" x2="720" y2="500" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
   `,
 
-  // 10. ドッジボール：外野ライン／内野コート（実線）／センターライン
+  // 10. ドッジボール：内野コート（実線）／センターライン（外野の点線は撤去）
   dodgeball: () => `
-    <rect x="60" y="80" width="880" height="440" fill="none" stroke="${STROKE_SOFT}" stroke-width="2" stroke-dasharray="8,6"/>
     <rect x="180" y="140" width="640" height="320" fill="none" stroke="${STROKE}" stroke-width="2.5"/>
     <line x1="500" y1="140" x2="500" y2="460" stroke="${STROKE}" stroke-width="2.5"/>
   `
