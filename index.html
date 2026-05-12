@@ -13,58 +13,51 @@
 <header class="toolbar">
   <div class="toolbar-left">
     <h1 class="app-title">作戦ボード</h1>
-    <input type="text" id="boardName" class="board-name" placeholder="作戦ボード名">
+    <input type="text" id="boardName" class="board-name" placeholder="ボード名">
   </div>
 
   <div class="toolbar-center">
-    <label class="tb-label">デザイン
-      <select id="sportSelect">
-        <optgroup label="スポーツ">
-          <option value="soccer">サッカー</option>
-          <option value="basketball">バスケットボール</option>
-          <option value="volleyball">バレーボール</option>
-          <option value="baseball">野球</option>
-          <option value="dodgeball">ドッジボール</option>
-          <option value="track">陸上トラック</option>
-        </optgroup>
-        <optgroup label="学校">
-          <option value="classroom">教室</option>
-          <option value="assembly">体育館・集会</option>
-          <option value="ground">グラウンド</option>
-        </optgroup>
-        <optgroup label="その他">
-          <option value="free">フリー（白板）</option>
-        </optgroup>
-      </select>
-    </label>
+    <select id="sportSelect" class="design-select" title="デザインを選択">
+      <option value="free">フリー</option>
+      <option value="ground">校庭</option>
+      <option value="assembly">体育館</option>
+      <option value="classroom">教室</option>
+      <option value="soccer">サッカー</option>
+      <option value="rugby">ラグビー</option>
+      <option value="baseball">ベースボール</option>
+      <option value="basketball">バスケットボール</option>
+      <option value="volleyball">バレーボール</option>
+      <option value="dodgeball">ドッジボール</option>
+    </select>
   </div>
 
   <div class="toolbar-right">
-    <button id="btnImport" class="btn btn-primary">取り込み</button>
-    <button id="btnAddBlank" class="btn">空白カード追加</button>
-    <button id="btnBulkColor" class="btn">一括色変更</button>
-    <button id="btnShare" class="btn btn-share">公開URLの共有</button>
-    <button id="btnClear" class="btn btn-danger">全消去</button>
+    <button id="btnImport" class="btn btn-primary" title="名簿の取り込み">取り込み</button>
+    <button id="btnShare" class="btn btn-share" title="共有URLを発行">共有</button>
+    <button id="btnClear" class="btn btn-ghost" title="ボードを全消去">全消去</button>
   </div>
 </header>
 
 <main class="layout">
 
   <aside class="sidebar">
-    <h2 class="sidebar-title">メンバー一覧</h2>
     <div class="team-tabs">
       <button class="team-tab active" data-team="own">自チーム</button>
       <button class="team-tab" data-team="opponent">相手チーム</button>
     </div>
     <div class="member-actions">
-      <button id="btnAddMember" class="btn btn-small">＋ 名前を追加</button>
-      <button id="btnPlaceAll" class="btn btn-small">全員をボードへ</button>
-      <button id="btnRemoveAll" class="btn btn-small">全員外す</button>
+      <button id="btnAddMember" class="btn btn-pill" title="名前を追加">＋ 名前</button>
+      <button id="btnAddBlank" class="btn btn-pill" title="空白カードを追加">＋ 空白</button>
+      <button id="btnBulkColor" class="btn btn-pill" title="色を一括変更">色変更</button>
+    </div>
+    <div class="member-actions secondary">
+      <button id="btnPlaceAll" class="btn btn-pill btn-ghost" title="全員をボードへ配置">全配置</button>
+      <button id="btnRemoveAll" class="btn btn-pill btn-ghost" title="全員ボードから外す">全外す</button>
     </div>
     <div class="list-header">
-      <span class="lh-num" title="番号表示の一括切替">№</span>
-      <span class="lh-name">名前 / その他</span>
-      <span class="lh-act">配置</span>
+      <span class="lh-num" title="番号表示">№</span>
+      <span class="lh-name">名前</span>
+      <span class="lh-act"></span>
     </div>
     <ul id="memberList" class="member-list"></ul>
   </aside>
@@ -74,21 +67,23 @@
     <!-- Board toolbar (on board, not in settings) -->
     <div class="board-toolbar">
       <div class="bt-group">
-        <button id="btnDrawToggle" class="btn btn-bt" title="描画モード（ホワイトボード）切替">描画</button>
+        <button id="btnDrawToggle" class="btn-tool" title="ホワイトボードマーカーで書き込み">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          <span>ペン</span>
+        </button>
         <div id="drawTools" class="draw-tools hidden">
           <button class="bt-mode active" data-mode="pen" title="ペン">ペン</button>
-          <button class="bt-mode" data-mode="eraser" title="消しゴム">消しゴム</button>
+          <button class="bt-mode" data-mode="eraser" title="消しゴム">消し</button>
           <div class="bt-color-mount" id="penColorMount"></div>
           <label class="bt-width" title="ペンの太さ">
             <input type="range" id="penWidth" min="2" max="20" value="4">
           </label>
-          <button id="btnUndoStroke" class="btn btn-bt-mini" title="一筆戻す">↶ 戻す</button>
-          <button id="btnClearStrokes" class="btn btn-bt-mini btn-danger" title="描画を全消去">描画消去</button>
+          <button id="btnUndoStroke" class="btn-icon" title="一筆戻す">↶</button>
+          <button id="btnClearStrokes" class="btn-icon btn-icon-danger" title="描画を全消去">×</button>
         </div>
       </div>
 
-      <div class="bt-group bt-group-shapes">
-        <span class="bt-label-mini">図形：</span>
+      <div class="bt-group bt-group-shapes" title="図形を追加">
         <button class="bt-shape" data-shape="rect" title="四角">■</button>
         <button class="bt-shape" data-shape="circle" title="丸">●</button>
         <button class="bt-shape" data-shape="triangle" title="三角">▲</button>
@@ -98,25 +93,31 @@
       </div>
 
       <div class="bt-group bt-group-right">
-        <button id="btnJsonSave" class="btn btn-bt" title="現在のボードをJSON形式でダウンロード">JSON保存</button>
-        <button id="btnJsonLoad" class="btn btn-bt" title="JSONファイルを読み込む">JSON読込</button>
+        <button id="btnJsonSave" class="btn-tool" title="JSONで保存">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </button>
+        <button id="btnJsonLoad" class="btn-tool" title="JSONを読み込み">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </button>
         <input type="file" id="jsonInput" accept=".json,application/json" hidden>
-        <button id="btnJpegSave" class="btn btn-bt btn-primary" title="ボードを画像として保存">JPEG保存</button>
+        <button id="btnJpegSave" class="btn-tool btn-tool-primary" title="JPEG画像で保存">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>画像</span>
+        </button>
       </div>
     </div>
 
     <!-- Shape edit toolbar (appears when a shape is selected) -->
     <div class="shape-edit-toolbar hidden" id="shapeEditToolbar">
-      <span class="bt-label-mini">図形：</span>
       <div class="bt-color-mount" id="shapeColorMount"></div>
       <label class="bt-width" title="線の太さ">
         <input type="range" id="shapeStrokeWidth" min="1" max="12" value="3">
       </label>
-      <button id="btnShapeFill" class="btn btn-bt-mini" title="塗りつぶし切替">塗りつぶし</button>
-      <button id="btnShapeRotateL" class="btn btn-bt-mini" title="15度左回転">↶15°</button>
-      <button id="btnShapeRotateR" class="btn btn-bt-mini" title="15度右回転">↷15°</button>
-      <button id="btnShapeDuplicate" class="btn btn-bt-mini" title="複製">複製</button>
-      <button id="btnShapeDelete" class="btn btn-bt-mini btn-danger" title="削除">削除</button>
+      <button id="btnShapeFill" class="btn-icon" title="塗りつぶし切替">塗</button>
+      <button id="btnShapeRotateL" class="btn-icon" title="15度左回転">↶</button>
+      <button id="btnShapeRotateR" class="btn-icon" title="15度右回転">↷</button>
+      <button id="btnShapeDuplicate" class="btn-icon" title="複製">＋</button>
+      <button id="btnShapeDelete" class="btn-icon btn-icon-danger" title="削除">×</button>
     </div>
 
     <div id="board" class="board" data-sport="free">

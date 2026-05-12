@@ -4,8 +4,9 @@
 
 const STORAGE_KEY = 'sakusen-board-v3';
 
-// Muted stroke color for board designs (so cards stand out)
-const STROKE = 'rgba(255,255,255,0.55)';
+// Muted stroke color for board designs (visible on white, soft enough to keep cards prominent)
+const STROKE = 'rgba(70,90,120,0.5)';
+const STROKE_SOFT = 'rgba(70,90,120,0.28)';
 
 // 20-color palette for the color picker (+ "その他" for free RGB)
 const COLOR_PALETTE = [
@@ -71,6 +72,8 @@ function loadState() {
   }
   if (!state.drawings) state.drawings = [];
   if (!state.shapes) state.shapes = [];
+  // 削除済みデザインのフォールバック
+  if (!SPORT_SVGS[state.sport]) state.sport = 'free';
 }
 
 // ============================================================
@@ -183,94 +186,115 @@ function createColorPicker(initial, onChange, options = {}) {
 // viewBox: 1000 x 600
 // ============================================================
 const SPORT_SVGS = {
+  // 1. フリー：白板＋うっすらグリッド
   free: () => `
     <defs>
       <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e6ebf2" stroke-width="0.6"/>
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(180,195,215,0.5)" stroke-width="0.6"/>
       </pattern>
     </defs>
     <rect width="1000" height="600" fill="url(#grid)"/>
   `,
 
+  // 2. 校庭：シンプルな広場（外枠＋うっすらトラック楕円）
+  ground: () => `
+    <rect x="40" y="40" width="920" height="520" rx="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <ellipse cx="500" cy="300" rx="380" ry="220" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,5"/>
+  `,
+
+  // 3. 体育館：シンプルな矩形＋センターライン（点々なし）
+  assembly: () => `
+    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
+  `,
+
+  // 4. 教室：外枠＋教卓側のライン（机の跡なし）
+  classroom: () => `
+    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="40" y1="130" x2="960" y2="130" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
+  `,
+
+  // 5. サッカー：ピッチ枠／センターライン／センターサークル／ペナルティエリア／ゴールエリア／PKマーク／ペナルティアーク／ゴール／コーナー
   soccer: () => `
-    <line x1="500" y1="20" x2="500" y2="580" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
     <circle cx="500" cy="300" r="70" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <circle cx="500" cy="300" r="3" fill="${STROKE}"/>
-    <rect x="20" y="170" width="120" height="260" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="860" y="170" width="120" height="260" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <path d="M 140 240 A 70 70 0 0 1 140 360" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <path d="M 860 240 A 70 70 0 0 0 860 360" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="40" y="170" width="120" height="260" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="40" y="230" width="50" height="140" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="120" cy="300" r="3" fill="${STROKE}"/>
+    <path d="M 160 257 A 50 50 0 0 1 160 343" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="840" y="170" width="120" height="260" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="910" y="230" width="50" height="140" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="880" cy="300" r="3" fill="${STROKE}"/>
+    <path d="M 840 257 A 50 50 0 0 0 840 343" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="30" y="270" width="10" height="60" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="960" y="270" width="10" height="60" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 40 50 A 10 10 0 0 1 50 40" fill="none" stroke="${STROKE}" stroke-width="1.5"/>
+    <path d="M 950 40 A 10 10 0 0 1 960 50" fill="none" stroke="${STROKE}" stroke-width="1.5"/>
+    <path d="M 40 550 A 10 10 0 0 0 50 560" fill="none" stroke="${STROKE}" stroke-width="1.5"/>
+    <path d="M 950 560 A 10 10 0 0 0 960 550" fill="none" stroke="${STROKE}" stroke-width="1.5"/>
   `,
 
-  basketball: () => `
-    <line x1="500" y1="20" x2="500" y2="580" stroke="${STROKE}" stroke-width="2"/>
-    <circle cx="500" cy="300" r="60" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="20" y="180" width="170" height="240" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="810" y="180" width="170" height="240" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <path d="M 20 100 Q 230 300 20 500" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <path d="M 980 100 Q 770 300 980 500" fill="none" stroke="${STROKE}" stroke-width="2"/>
+  // 6. ラグビー：トライライン／22mライン／10mライン（破線）／ハーフ／ゴールポスト(H)
+  rugby: () => `
+    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="160" y1="40" x2="160" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="840" y1="40" x2="840" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="280" y1="40" x2="280" y2="560" stroke="${STROKE}" stroke-width="1.5"/>
+    <line x1="720" y1="40" x2="720" y2="560" stroke="${STROKE}" stroke-width="1.5"/>
+    <line x1="400" y1="40" x2="400" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="8,6"/>
+    <line x1="600" y1="40" x2="600" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="8,6"/>
+    <line x1="154" y1="280" x2="166" y2="280" stroke="${STROKE}" stroke-width="3"/>
+    <line x1="160" y1="280" x2="160" y2="320" stroke="${STROKE}" stroke-width="3"/>
+    <line x1="154" y1="320" x2="166" y2="320" stroke="${STROKE}" stroke-width="3"/>
+    <line x1="834" y1="280" x2="846" y2="280" stroke="${STROKE}" stroke-width="3"/>
+    <line x1="840" y1="280" x2="840" y2="320" stroke="${STROKE}" stroke-width="3"/>
+    <line x1="834" y1="320" x2="846" y2="320" stroke="${STROKE}" stroke-width="3"/>
   `,
 
-  volleyball: () => `
-    <line x1="500" y1="60" x2="500" y2="540" stroke="${STROKE}" stroke-width="4"/>
-    <line x1="320" y1="60" x2="320" y2="540" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
-    <line x1="680" y1="60" x2="680" y2="540" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
-  `,
-
+  // 7. ベースボール：内野ダイヤ・マウンド・ベース・ファウルライン・外野フェンス
   baseball: () => `
-    <polygon points="500,460 600,360 500,260 400,360" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <circle cx="500" cy="380" r="14" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="492" y="456" width="16" height="12" fill="${STROKE}"/>
-    <rect x="592" y="356" width="14" height="12" fill="${STROKE}"/>
-    <rect x="394" y="356" width="14" height="12" fill="${STROKE}"/>
-    <polygon points="500,252 508,264 500,270 492,264" fill="${STROKE}"/>
+    <polygon points="500,440 600,340 500,240 400,340" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="440" x2="220" y2="160" stroke="${STROKE}" stroke-width="1.5"/>
+    <line x1="500" y1="440" x2="780" y2="160" stroke="${STROKE}" stroke-width="1.5"/>
+    <path d="M 220 160 Q 500 0 780 160" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
+    <circle cx="500" cy="360" r="14" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="492" y="436" width="16" height="12" fill="${STROKE}"/>
+    <rect x="592" y="336" width="14" height="12" fill="${STROKE}"/>
+    <rect x="394" y="336" width="14" height="12" fill="${STROKE}"/>
+    <polygon points="500,232 508,244 500,250 492,244" fill="${STROKE}"/>
   `,
 
+  // 8. バスケットボール：コート枠／センター／センターサークル／制限区域／フリースロー／3Pライン／リング
+  basketball: () => `
+    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="500" cy="300" r="60" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="40" y="180" width="170" height="240" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="790" y="180" width="170" height="240" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 210 240 A 60 60 0 0 1 210 360" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 790 240 A 60 60 0 0 0 790 360" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 40 90 Q 320 300 40 510" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <path d="M 960 90 Q 680 300 960 510" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="90" cy="300" r="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <circle cx="910" cy="300" r="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
+  `,
+
+  // 9. バレーボール：コート枠／ネット／アタックライン
+  volleyball: () => `
+    <rect x="60" y="100" width="880" height="400" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="80" x2="500" y2="520" stroke="${STROKE}" stroke-width="4"/>
+    <line x1="280" y1="100" x2="280" y2="500" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
+    <line x1="720" y1="100" x2="720" y2="500" stroke="${STROKE}" stroke-width="2" stroke-dasharray="6,4"/>
+  `,
+
+  // 10. ドッジボール：外野ライン／内野コート（実線）／センターライン
   dodgeball: () => `
-    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="3"/>
-    <line x1="60" y1="40" x2="60" y2="560" stroke="${STROKE}" stroke-width="3" stroke-dasharray="10,8"/>
-    <line x1="940" y1="40" x2="940" y2="560" stroke="${STROKE}" stroke-width="3" stroke-dasharray="10,8"/>
-  `,
-
-  track: () => `
-    <rect x="80" y="80" width="840" height="440" rx="220" ry="220" fill="none" stroke="${STROKE}" stroke-width="3"/>
-    <rect x="140" y="140" width="720" height="320" rx="160" ry="160" fill="none" stroke="${STROKE}" stroke-width="1.5" stroke-dasharray="6,6"/>
-    <rect x="200" y="200" width="600" height="200" rx="100" ry="100" fill="rgba(110,150,90,0.35)" stroke="${STROKE}" stroke-width="2"/>
-  `,
-
-  classroom: () => {
-    let out = '';
-    const cols = 6, rows = 5;
-    const startX = 165, startY = 165;
-    const gapX = 125, gapY = 80;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = startX + c * gapX;
-        const y = startY + r * gapY;
-        out += `<rect x="${x}" y="${y}" width="70" height="45" fill="none" stroke="rgba(120,100,70,0.5)" stroke-width="1.5" rx="3"/>`;
-      }
-    }
-    return out;
-  },
-
-  assembly: () => {
-    let out = `<rect x="380" y="60" width="240" height="50" fill="none" stroke="rgba(120,100,70,0.55)" stroke-width="2"/>`;
-    const rows = 6, cols = 14;
-    const startX = 110, startY = 180;
-    const gapX = 60, gapY = 60;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = startX + c * gapX;
-        const y = startY + r * gapY;
-        out += `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="rgba(120,100,70,0.5)" stroke-width="1.2"/>`;
-      }
-    }
-    return out;
-  },
-
-  ground: () => `
-    <ellipse cx="500" cy="300" rx="420" ry="240" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-dasharray="8,6"/>
-    <ellipse cx="500" cy="300" rx="280" ry="150" fill="rgba(140,170,110,0.3)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+    <rect x="60" y="80" width="880" height="440" fill="none" stroke="${STROKE_SOFT}" stroke-width="2" stroke-dasharray="8,6"/>
+    <rect x="180" y="140" width="640" height="320" fill="none" stroke="${STROKE}" stroke-width="2.5"/>
+    <line x1="500" y1="140" x2="500" y2="460" stroke="${STROKE}" stroke-width="2.5"/>
   `
 };
 
