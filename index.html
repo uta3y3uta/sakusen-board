@@ -14,9 +14,6 @@
   <div class="toolbar-left">
     <h1 class="app-title">作戦ボード</h1>
     <input type="text" id="boardName" class="board-name" placeholder="ボード名">
-  </div>
-
-  <div class="toolbar-center">
     <select id="sportSelect" class="design-select" title="デザインを選択">
       <option value="free">フリー</option>
       <option value="ground">校庭</option>
@@ -29,11 +26,6 @@
       <option value="volleyball">ネット型</option>
       <option value="dodgeball">ドッジボール</option>
     </select>
-  </div>
-
-  <div class="toolbar-right">
-    <button id="btnShare" class="btn btn-share" title="共有URLを発行">共有</button>
-    <button id="btnClear" class="btn btn-ghost" title="ボードを全消去">全消去</button>
   </div>
 </header>
 
@@ -93,6 +85,10 @@
       </div>
 
       <div class="bt-group bt-group-right">
+        <button id="btnShare" class="btn-tool btn-tool-share" title="共有URLを発行">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>共有</span>
+        </button>
         <div class="bt-dropdown">
           <button id="btnSaveToggle" class="btn-tool btn-tool-primary" title="保存">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -112,8 +108,13 @@
         </div>
         <button id="btnJsonLoad" class="btn-tool" title="JSONを読み込み">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>読込</span>
         </button>
         <input type="file" id="jsonInput" accept=".json,application/json" hidden>
+        <button id="btnClear" class="btn-tool btn-tool-danger" title="ボードを全消去">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          <span>全消去</span>
+        </button>
       </div>
     </div>
 

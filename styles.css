@@ -51,9 +51,7 @@ body {
   flex-wrap: wrap;
   gap: 10px;
 }
-.toolbar-left { display: flex; align-items: center; gap: 14px; }
-.toolbar-center { display: flex; gap: 12px; }
-.toolbar-right { display: flex; gap: 6px; flex-wrap: wrap; }
+.toolbar-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
 .app-title {
   font-size: 15px;
@@ -175,6 +173,8 @@ body {
 .btn-tool.btn-tool-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
 .btn-tool.btn-tool-danger { background: #fff; color: var(--danger); border-color: var(--border); }
 .btn-tool.btn-tool-danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger-hover); }
+.btn-tool.btn-tool-share { background: var(--share); color: #fff; border-color: var(--share); }
+.btn-tool.btn-tool-share:hover { background: var(--share-hover); border-color: var(--share-hover); color: #fff; }
 .btn-tool .caret { font-size: 10px; opacity: 0.8; margin-left: 2px; }
 
 /* Icon-only button (small) */
@@ -733,10 +733,11 @@ body {
   transform: translateX(-50%);
 }
 
-/* Text shape — sized explicitly via s.w / s.h like other shapes; font scales independently */
+/* Text shape — sized explicitly via s.w / s.h like other shapes; font scales independently.
+   Note: parent must NOT clip overflow, or the selection bbox/handles get cut off.
+   We clip text inside .text-content instead. */
 .shape-text {
   pointer-events: auto;
-  overflow: hidden;
 }
 .text-content {
   width: 100%;
@@ -750,6 +751,8 @@ body {
   font-weight: 600;
   user-select: none;
   padding: 2px 4px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Marquee (rubber-band) selection rectangle */
