@@ -207,31 +207,28 @@ const SPORT_SVGS = {
     <rect width="1000" height="600" fill="url(#grid)"/>
   `,
 
-  // 2. 校庭：外枠＋しっかりしたトラック＋朝礼台
+  // 2. 校庭：外枠＋トラック（中央の朝礼台は撤去）
   ground: () => `
     <rect x="40" y="40" width="920" height="520" rx="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <rect x="100" y="110" width="800" height="380" rx="190" ry="190" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <rect x="150" y="155" width="700" height="290" rx="145" ry="145" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,5"/>
-    <rect x="470" y="290" width="60" height="36" rx="3" fill="rgba(95,75,55,0.18)" stroke="${STROKE}" stroke-width="1.5"/>
   `,
 
-  // 3. 体育館：外枠＋ステージ＋センターライン
+  // 3. 体育館：外枠＋横長ステージ（センターラインは撤去）
   assembly: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="350" y="44" width="300" height="60" fill="rgba(95,75,55,0.16)" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="350" y1="74" x2="650" y2="74" stroke="${STROKE_SOFT}" stroke-width="1"/>
-    <line x1="500" y1="120" x2="500" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
+    <rect x="200" y="44" width="600" height="60" fill="rgba(95,75,55,0.16)" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="200" y1="74" x2="800" y2="74" stroke="${STROKE_SOFT}" stroke-width="1"/>
   `,
 
-  // 4. 教室：外枠＋黒板＋教卓
+  // 4. 教室：外枠＋薄い黒板（教卓は撤去）
   classroom: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="220" y="60" width="560" height="70" fill="${CHALKBOARD}" stroke="${STROKE}" stroke-width="2" rx="4"/>
-    <rect x="225" y="65" width="550" height="60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1" rx="2"/>
-    <rect x="450" y="150" width="100" height="40" fill="rgba(95,75,55,0.12)" stroke="${STROKE}" stroke-width="1.5" rx="3"/>
+    <rect x="220" y="60" width="560" height="70" fill="rgba(46,68,52,0.35)" stroke="${STROKE_SOFT}" stroke-width="1.5" rx="4"/>
+    <rect x="225" y="65" width="550" height="60" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1" rx="2"/>
   `,
 
-  // 5. サッカー：ピッチ枠／センターライン／センターサークル／ペナルティエリア／ゴールエリア／PKマーク／ペナルティアーク／ゴール／コーナー
+  // 5. ゴール型1（サッカー）：ピッチ枠／センターライン／センターサークル／ペナルティエリア／ゴールエリア／PKマーク／ペナルティアーク／ゴール／コーナー
   soccer: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
@@ -253,7 +250,7 @@ const SPORT_SVGS = {
     <path d="M 950 560 A 10 10 0 0 0 960 550" fill="none" stroke="${STROKE}" stroke-width="1.5"/>
   `,
 
-  // 6. ラグビー：トライライン／22mライン／10mライン（破線）／ハーフ／ゴールポスト(H)
+  // 6. ゴール型3（ラグビー）：トライライン／22mライン／10mライン（破線）／ハーフ／ゴールポスト(H)
   rugby: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
@@ -271,28 +268,7 @@ const SPORT_SVGS = {
     <line x1="834" y1="320" x2="846" y2="320" stroke="${STROKE}" stroke-width="3"/>
   `,
 
-  // 7. フラッグフットボール：フィールド＋エンドゾーン＋ヤードライン＋ハッシュマーク
-  flagfootball: () => `
-    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="160" y1="40" x2="160" y2="560" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="840" y1="40" x2="840" y2="560" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="40" y="40" width="120" height="520" fill="rgba(95,75,55,0.08)"/>
-    <rect x="840" y="40" width="120" height="520" fill="rgba(95,75,55,0.08)"/>
-    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="296" y1="40" x2="296" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
-    <line x1="398" y1="40" x2="398" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
-    <line x1="602" y1="40" x2="602" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
-    <line x1="704" y1="40" x2="704" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
-    <g stroke="${STROKE}" stroke-width="1.5">
-      <line x1="296" y1="220" x2="296" y2="232"/><line x1="296" y1="368" x2="296" y2="380"/>
-      <line x1="398" y1="220" x2="398" y2="232"/><line x1="398" y1="368" x2="398" y2="380"/>
-      <line x1="500" y1="220" x2="500" y2="232"/><line x1="500" y1="368" x2="500" y2="380"/>
-      <line x1="602" y1="220" x2="602" y2="232"/><line x1="602" y1="368" x2="602" y2="380"/>
-      <line x1="704" y1="220" x2="704" y2="232"/><line x1="704" y1="368" x2="704" y2="380"/>
-    </g>
-  `,
-
-  // 8. ベースボール：内野ダイヤを下寄せにして外野にカードを置けるように
+  // 7. ベースボール型：内野ダイヤを下寄せにして外野にカードを置けるように
   baseball: () => `
     <polygon points="500,540 600,440 500,340 400,440" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="540" x2="220" y2="260" stroke="${STROKE}" stroke-width="1.5"/>
@@ -305,7 +281,7 @@ const SPORT_SVGS = {
     <polygon points="500,332 508,344 500,350 492,344" fill="${STROKE}"/>
   `,
 
-  // 8. バスケットボール：コート枠／センター／センターサークル／制限区域／フリースロー／3Pライン／リング
+  // 8. ゴール型2（バスケットボール）：コート枠／センター／センターサークル／制限区域／フリースロー／3Pライン／リング
   basketball: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
@@ -320,7 +296,7 @@ const SPORT_SVGS = {
     <circle cx="910" cy="300" r="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
   `,
 
-  // 9. バレーボール：コート枠／ネット／アタックライン
+  // 9. ネット型（バレーボール）：コート枠／ネット／アタックライン
   volleyball: () => `
     <rect x="60" y="100" width="880" height="400" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="80" x2="500" y2="520" stroke="${STROKE}" stroke-width="4"/>
@@ -356,7 +332,7 @@ function renderMemberList() {
     li.className = 'member-item';
     li.style.opacity = '0.6';
     li.style.justifyContent = 'center';
-    li.textContent = 'メンバーがいません。「取込」か「＋名前を追加」で追加してください。';
+    li.textContent = 'メンバーがいません。「取込」または「＋空白」で追加してください。';
     ul.appendChild(li);
     return;
   }
@@ -1542,13 +1518,6 @@ function wireEvents() {
       state.activeTeam = tab.dataset.team;
       renderMemberList();
     });
-  });
-  document.getElementById('btnAddMember').addEventListener('click', () => {
-    const name = prompt('名前を入力してください（空欄でも可）');
-    if (name === null) return;
-    state.members.push(makeMember({ name: name.trim(), team: state.activeTeam }));
-    saveState();
-    renderMemberList();
   });
   document.getElementById('btnPlaceAll').addEventListener('click', () => {
     const team = state.activeTeam;

@@ -151,6 +151,8 @@ body {
 .btn-pill:hover { background: var(--bg-soft); border-color: var(--accent); color: var(--accent-hover); }
 .btn-pill.btn-ghost { color: var(--text-muted); }
 .btn-pill.btn-ghost:hover { background: var(--bg-subtle); color: var(--text-strong); border-color: var(--border-strong); }
+.btn-pill.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-pill.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
 
 /* Tool button on board toolbar (icon + small label) */
 .btn-tool {
