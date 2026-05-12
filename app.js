@@ -4,17 +4,26 @@
 
 const STORAGE_KEY = 'sakusen-board-v3';
 
-// Muted stroke color for board designs (visible on white, soft enough to keep cards prominent)
-const STROKE = 'rgba(70,90,120,0.5)';
-const STROKE_SOFT = 'rgba(70,90,120,0.28)';
+// Warm muted stroke color (visible on cream backgrounds, soft enough to keep cards prominent)
+const STROKE = 'rgba(95,75,55,0.55)';
+const STROKE_SOFT = 'rgba(95,75,55,0.3)';
+const CHALKBOARD = 'rgba(46,68,52,0.85)';
 
-// 20-color palette for the color picker (+ "その他" for free RGB)
+// 20-color palette focused on major, recognizable colors (+ "その他" for free RGB)
 const COLOR_PALETTE = [
-  '#ffffff','#e0e0e0','#a0a0a0','#5a5a5a','#1e1e1e',
-  '#ffd9d9','#e85a5a','#a93030','#ff8c42','#ffd86b',
-  '#d4e6ff','#2d8cff','#1e3a5f','#d9f0d9','#2e7d32',
-  '#ead7f7','#9c4dcc','#c2185b','#f0e0c8','#8b6f3a'
+  '#ffffff','#bfbfbf','#7a7a7a','#3d3d3d','#000000',
+  '#e53935','#fb8c00','#fdd835','#43a047','#1e88e5',
+  '#5e35b1','#d81b60','#00897b','#6d4c41','#1e3a5f',
+  '#ffcdd2','#ffe0b2','#fff59d','#c8e6c9','#bbdefb'
 ];
+
+// Font families for text element
+const FONT_FAMILIES = {
+  gothic: '"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif',
+  mincho: '"Hiragino Mincho ProN","Yu Mincho","MS Mincho",serif',
+  maru: '"Hiragino Maru Gothic ProN","Meiryo",sans-serif',
+  rounded: '"M PLUS Rounded 1c","Comic Sans MS","Hiragino Maru Gothic ProN",cursive'
+};
 
 const DEFAULT_OWN_CARD = '#ffffff';
 const DEFAULT_OWN_TEXT = '#1e3a5f';
@@ -32,6 +41,8 @@ let state = {
 
 let editingMemberId = null;
 let selectedShapeId = null;
+let selectedMemberId = null;
+let selectedKind = null; // 'card' | 'shape' | null
 
 const pickers = {};
 
@@ -196,22 +207,28 @@ const SPORT_SVGS = {
     <rect width="1000" height="600" fill="url(#grid)"/>
   `,
 
-  // 2. 校庭：シンプルな広場（外枠＋うっすらトラック楕円）
+  // 2. 校庭：外枠＋しっかりしたトラック＋朝礼台
   ground: () => `
     <rect x="40" y="40" width="920" height="520" rx="6" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <ellipse cx="500" cy="300" rx="380" ry="220" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,5"/>
+    <rect x="100" y="110" width="800" height="380" rx="190" ry="190" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="150" y="155" width="700" height="290" rx="145" ry="145" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,5"/>
+    <rect x="470" y="290" width="60" height="36" rx="3" fill="rgba(95,75,55,0.18)" stroke="${STROKE}" stroke-width="1.5"/>
   `,
 
-  // 3. 体育館：シンプルな矩形＋センターライン（点々なし）
+  // 3. 体育館：外枠＋ステージ＋センターライン
   assembly: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
+    <rect x="350" y="44" width="300" height="60" fill="rgba(95,75,55,0.16)" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="350" y1="74" x2="650" y2="74" stroke="${STROKE_SOFT}" stroke-width="1"/>
+    <line x1="500" y1="120" x2="500" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
   `,
 
-  // 4. 教室：外枠＋教卓側のライン（机の跡なし）
+  // 4. 教室：外枠＋黒板＋教卓
   classroom: () => `
     <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="40" y1="130" x2="960" y2="130" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
+    <rect x="220" y="60" width="560" height="70" fill="${CHALKBOARD}" stroke="${STROKE}" stroke-width="2" rx="4"/>
+    <rect x="225" y="65" width="550" height="60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1" rx="2"/>
+    <rect x="450" y="150" width="100" height="40" fill="rgba(95,75,55,0.12)" stroke="${STROKE}" stroke-width="1.5" rx="3"/>
   `,
 
   // 5. サッカー：ピッチ枠／センターライン／センターサークル／ペナルティエリア／ゴールエリア／PKマーク／ペナルティアーク／ゴール／コーナー
@@ -254,7 +271,28 @@ const SPORT_SVGS = {
     <line x1="834" y1="320" x2="846" y2="320" stroke="${STROKE}" stroke-width="3"/>
   `,
 
-  // 7. ベースボール：内野ダイヤ・マウンド・ベース・ファウルライン・外野フェンス
+  // 7. フラッグフットボール：フィールド＋エンドゾーン＋ヤードライン＋ハッシュマーク
+  flagfootball: () => `
+    <rect x="40" y="40" width="920" height="520" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="160" y1="40" x2="160" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="840" y1="40" x2="840" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="40" y="40" width="120" height="520" fill="rgba(95,75,55,0.08)"/>
+    <rect x="840" y="40" width="120" height="520" fill="rgba(95,75,55,0.08)"/>
+    <line x1="500" y1="40" x2="500" y2="560" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="296" y1="40" x2="296" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
+    <line x1="398" y1="40" x2="398" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
+    <line x1="602" y1="40" x2="602" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
+    <line x1="704" y1="40" x2="704" y2="560" stroke="${STROKE_SOFT}" stroke-width="1.5"/>
+    <g stroke="${STROKE}" stroke-width="1.5">
+      <line x1="296" y1="220" x2="296" y2="232"/><line x1="296" y1="368" x2="296" y2="380"/>
+      <line x1="398" y1="220" x2="398" y2="232"/><line x1="398" y1="368" x2="398" y2="380"/>
+      <line x1="500" y1="220" x2="500" y2="232"/><line x1="500" y1="368" x2="500" y2="380"/>
+      <line x1="602" y1="220" x2="602" y2="232"/><line x1="602" y1="368" x2="602" y2="380"/>
+      <line x1="704" y1="220" x2="704" y2="232"/><line x1="704" y1="368" x2="704" y2="380"/>
+    </g>
+  `,
+
+  // 8. ベースボール：内野ダイヤ・マウンド・ベース・ファウルライン・外野フェンス
   baseball: () => `
     <polygon points="500,440 600,340 500,240 400,340" fill="none" stroke="${STROKE}" stroke-width="2"/>
     <line x1="500" y1="440" x2="220" y2="160" stroke="${STROKE}" stroke-width="1.5"/>
@@ -396,6 +434,7 @@ function renderCards() {
     const card = document.createElement('div');
     card.className = 'card team-' + m.team;
     if (!m.name && !m.other) card.classList.add('empty');
+    if (m.id === selectedMemberId) card.classList.add('selected');
     card.dataset.id = m.id;
     card.style.left = (m.x * 100) + '%';
     card.style.top = (m.y * 100) + '%';
@@ -439,8 +478,10 @@ function attachCardDrag(card, member) {
   const onDown = (e) => {
     if (document.getElementById('board').classList.contains('draw-mode')) return;
     e.preventDefault();
+    e.stopPropagation();
     dragging = true;
     card.classList.add('dragging');
+    selectCard(member.id);
     const p = e.touches ? e.touches[0] : e;
     startX = p.clientX;
     startY = p.clientY;
@@ -500,6 +541,14 @@ function makeShape(type) {
     s.w = 0.22;
     s.h = 0.06;
   }
+  if (type === 'text') {
+    s.content = 'テキスト';
+    s.fontKey = 'gothic';
+    s.fontSize = 0.06; // 6% of board height
+    s.color = '#3d2f1f';
+    s.w = 0.20;
+    s.h = 0.08;
+  }
   return s;
 }
 
@@ -543,33 +592,56 @@ function renderShapes() {
   const rect = board.getBoundingClientRect();
   state.shapes.forEach(s => {
     const div = document.createElement('div');
-    div.className = 'shape' + (s.id === selectedShapeId ? ' selected' : '');
+    div.className = 'shape shape-' + s.type + (s.id === selectedShapeId ? ' selected' : '');
     div.dataset.id = s.id;
     div.style.left = (s.x * 100) + '%';
     div.style.top = (s.y * 100) + '%';
-    div.style.width = (s.w * rect.width) + 'px';
-    div.style.height = (s.h * rect.height) + 'px';
     div.style.transform = `translate(-50%, -50%) rotate(${s.rotation}deg)`;
 
-    div.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${shapeInnerSvg(s)}</svg>`;
+    if (s.type === 'text') {
+      const span = document.createElement('span');
+      span.className = 'text-content';
+      span.textContent = s.content || 'テキスト';
+      span.style.fontFamily = FONT_FAMILIES[s.fontKey] || FONT_FAMILIES.gothic;
+      span.style.fontSize = (s.fontSize * rect.height) + 'px';
+      span.style.color = s.color;
+      div.appendChild(span);
+      div.addEventListener('dblclick', (e) => { e.stopPropagation(); editTextShapeContent(s.id); });
+    } else {
+      div.style.width = (s.w * rect.width) + 'px';
+      div.style.height = (s.h * rect.height) + 'px';
+      div.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${shapeInnerSvg(s)}</svg>`;
+    }
 
     if (s.id === selectedShapeId) {
       const bbox = document.createElement('div');
       bbox.className = 'shape-bbox';
       div.appendChild(bbox);
-      const hResize = document.createElement('div');
-      hResize.className = 'shape-handle handle-resize';
-      hResize.dataset.handle = 'resize';
+      if (s.type !== 'text') {
+        const hResize = document.createElement('div');
+        hResize.className = 'shape-handle handle-resize';
+        hResize.dataset.handle = 'resize';
+        div.appendChild(hResize);
+      }
       const hRotate = document.createElement('div');
       hRotate.className = 'shape-handle handle-rotate';
       hRotate.dataset.handle = 'rotate';
-      div.appendChild(hResize);
       div.appendChild(hRotate);
     }
 
     attachShapeEvents(div, s);
     layer.appendChild(div);
   });
+}
+
+function editTextShapeContent(id) {
+  const s = state.shapes.find(x => x.id === id);
+  if (!s || s.type !== 'text') return;
+  const v = prompt('テキストを入力してください', s.content || '');
+  if (v === null) return;
+  s.content = v;
+  saveState();
+  renderShapes();
 }
 
 function attachShapeEvents(div, shape) {
@@ -656,6 +728,9 @@ function attachShapeEvents(div, shape) {
 }
 
 function selectShape(id) {
+  selectedKind = 'shape';
+  selectedMemberId = null;
+  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
   if (selectedShapeId === id) return;
   selectedShapeId = id;
   renderShapes();
@@ -663,10 +738,46 @@ function selectShape(id) {
 }
 
 function deselectShape() {
+  if (selectedKind === 'shape') selectedKind = null;
   if (!selectedShapeId) return;
   selectedShapeId = null;
   renderShapes();
   updateShapeToolbar();
+}
+
+function selectCard(memberId) {
+  selectedKind = 'card';
+  selectedMemberId = memberId;
+  if (selectedShapeId) {
+    selectedShapeId = null;
+    renderShapes();
+    updateShapeToolbar();
+  }
+  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+  const el = document.querySelector(`.card[data-id="${memberId}"]`);
+  if (el) el.classList.add('selected');
+}
+
+function deselectCard() {
+  if (selectedKind === 'card') selectedKind = null;
+  selectedMemberId = null;
+  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+}
+
+function deleteSelected() {
+  if (selectedKind === 'shape' && selectedShapeId) {
+    deleteSelectedShape();
+  } else if (selectedKind === 'card' && selectedMemberId) {
+    const m = state.members.find(x => x.id === selectedMemberId);
+    if (m) {
+      m.onBoard = false;
+      saveState();
+      renderMemberList();
+      renderCards();
+    }
+    selectedMemberId = null;
+    selectedKind = null;
+  }
 }
 
 function updateShapeToolbar() {
@@ -678,15 +789,32 @@ function updateShapeToolbar() {
   }
   tb.classList.remove('hidden');
   pickers.shape.setValue(s.color);
-  document.getElementById('shapeStrokeWidth').value = s.strokeWidth;
-  const fillBtn = document.getElementById('btnShapeFill');
-  fillBtn.classList.toggle('active', !!s.filled);
+
+  const shapeOnly = document.getElementById('shapeOnlyControls');
+  const textOnly = document.getElementById('textOnlyControls');
+
+  if (s.type === 'text') {
+    shapeOnly.classList.add('hidden');
+    textOnly.classList.remove('hidden');
+    document.getElementById('textFontFamily').value = s.fontKey || 'gothic';
+    document.getElementById('textFontSize').value = Math.round((s.fontSize || 0.06) * 1000);
+    document.getElementById('btnEditText').classList.remove('hidden');
+  } else {
+    shapeOnly.classList.remove('hidden');
+    textOnly.classList.add('hidden');
+    document.getElementById('btnEditText').classList.add('hidden');
+    document.getElementById('shapeStrokeWidth').value = s.strokeWidth;
+    document.getElementById('btnShapeFill').classList.toggle('active', !!s.filled);
+  }
 }
 
 function addShape(type) {
   const s = makeShape(type);
   state.shapes.push(s);
   selectedShapeId = s.id;
+  selectedKind = 'shape';
+  selectedMemberId = null;
+  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
   saveState();
   renderShapes();
   updateShapeToolbar();
@@ -1267,9 +1395,28 @@ function wireEvents() {
   document.getElementById('btnUndoStroke').addEventListener('click', undoStroke);
   document.getElementById('btnClearStrokes').addEventListener('click', clearStrokes);
 
-  // Board toolbar — shapes
+  // Board toolbar — shapes (T = text)
   document.querySelectorAll('.bt-shape').forEach(btn => {
     btn.addEventListener('click', () => addShape(btn.dataset.shape));
+  });
+
+  // Text element font/size controls
+  document.getElementById('textFontFamily').addEventListener('change', e => {
+    const s = state.shapes.find(x => x.id === selectedShapeId);
+    if (!s || s.type !== 'text') return;
+    s.fontKey = e.target.value;
+    saveState();
+    renderShapes();
+  });
+  document.getElementById('textFontSize').addEventListener('input', e => {
+    const s = state.shapes.find(x => x.id === selectedShapeId);
+    if (!s || s.type !== 'text') return;
+    s.fontSize = Number(e.target.value) / 1000;
+    saveState();
+    renderShapes();
+  });
+  document.getElementById('btnEditText').addEventListener('click', () => {
+    if (selectedShapeId) editTextShapeContent(selectedShapeId);
   });
 
   // Shape edit toolbar
@@ -1286,24 +1433,40 @@ function wireEvents() {
   document.getElementById('btnShapeDuplicate').addEventListener('click', duplicateSelectedShape);
   document.getElementById('btnShapeDelete').addEventListener('click', deleteSelectedShape);
 
-  // Click on empty area of board → deselect shape
-  document.getElementById('shapeLayer').addEventListener('mousedown', (e) => {
-    if (e.target.id === 'shapeLayer') deselectShape();
-  });
+  // Click on empty area of board → deselect both shape and card
   document.getElementById('board').addEventListener('mousedown', (e) => {
-    if (e.target.id === 'board' || e.target.id === 'boardBg') deselectShape();
+    if (e.target.id === 'board' || e.target.id === 'boardBg' ||
+        e.target.id === 'shapeLayer' || e.target.id === 'cardLayer') {
+      deselectShape();
+      deselectCard();
+    }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') deselectShape();
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShapeId &&
+    if (e.key === 'Escape') { deselectShape(); deselectCard(); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') &&
         document.activeElement.tagName !== 'INPUT' &&
         document.activeElement.tagName !== 'TEXTAREA') {
-      deleteSelectedShape();
+      if (selectedKind === 'shape' && selectedShapeId) { e.preventDefault(); deleteSelectedShape(); }
+      else if (selectedKind === 'card' && selectedMemberId) { e.preventDefault(); deleteSelected(); }
     }
   });
 
-  // Board toolbar — JSON / JPEG
-  document.getElementById('btnJsonSave').addEventListener('click', jsonSave);
+  // Board toolbar — Save dropdown (JPEG / JSON), Load, Delete
+  const saveDropdown = document.getElementById('saveDropdown');
+  document.getElementById('btnSaveToggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveDropdown.classList.toggle('hidden');
+  });
+  document.getElementById('btnDoSaveJpeg').addEventListener('click', () => {
+    saveDropdown.classList.add('hidden');
+    jpegSave();
+  });
+  document.getElementById('btnDoSaveJson').addEventListener('click', () => {
+    saveDropdown.classList.add('hidden');
+    jsonSave();
+  });
+  document.addEventListener('click', () => saveDropdown.classList.add('hidden'));
+
   document.getElementById('btnJsonLoad').addEventListener('click', () => {
     document.getElementById('jsonInput').click();
   });
@@ -1311,7 +1474,8 @@ function wireEvents() {
     if (e.target.files[0]) jsonLoad(e.target.files[0]);
     e.target.value = '';
   });
-  document.getElementById('btnJpegSave').addEventListener('click', jpegSave);
+
+  document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelected);
 
   // Modals
   document.querySelectorAll('.modal-close').forEach(btn => {

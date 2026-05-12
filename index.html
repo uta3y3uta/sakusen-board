@@ -24,6 +24,7 @@
       <option value="classroom">教室</option>
       <option value="soccer">サッカー</option>
       <option value="rugby">ラグビー</option>
+      <option value="flagfootball">フラッグフットボール</option>
       <option value="baseball">ベースボール</option>
       <option value="basketball">バスケットボール</option>
       <option value="volleyball">バレーボール</option>
@@ -83,37 +84,66 @@
         </div>
       </div>
 
-      <div class="bt-group bt-group-shapes" title="図形を追加">
+      <div class="bt-group bt-group-shapes" title="図形・テキストを追加">
         <button class="bt-shape" data-shape="rect" title="四角">■</button>
         <button class="bt-shape" data-shape="circle" title="丸">●</button>
         <button class="bt-shape" data-shape="triangle" title="三角">▲</button>
         <button class="bt-shape" data-shape="arrow" title="矢印">→</button>
         <button class="bt-shape" data-shape="double-arrow" title="両矢印">↔</button>
         <button class="bt-shape" data-shape="line" title="線">／</button>
+        <button class="bt-shape" data-shape="text" title="テキスト">T</button>
       </div>
 
       <div class="bt-group bt-group-right">
-        <button id="btnJsonSave" class="btn-tool" title="JSONで保存">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        </button>
+        <div class="bt-dropdown">
+          <button id="btnSaveToggle" class="btn-tool btn-tool-primary" title="保存">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>保存</span>
+            <span class="caret">▾</span>
+          </button>
+          <div id="saveDropdown" class="bt-dropdown-menu hidden">
+            <button id="btnDoSaveJpeg" class="dropdown-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>JPEG画像で保存</span>
+            </button>
+            <button id="btnDoSaveJson" class="dropdown-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>JSONで保存</span>
+            </button>
+          </div>
+        </div>
         <button id="btnJsonLoad" class="btn-tool" title="JSONを読み込み">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </button>
         <input type="file" id="jsonInput" accept=".json,application/json" hidden>
-        <button id="btnJpegSave" class="btn-tool btn-tool-primary" title="JPEG画像で保存">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <span>画像</span>
+        <button id="btnDeleteSelected" class="btn-tool btn-tool-danger" title="選択中のカード／図形を削除（非表示）">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          <span>削除</span>
         </button>
       </div>
     </div>
 
-    <!-- Shape edit toolbar (appears when a shape is selected) -->
+    <!-- Shape edit toolbar (appears when a shape or text is selected) -->
     <div class="shape-edit-toolbar hidden" id="shapeEditToolbar">
       <div class="bt-color-mount" id="shapeColorMount"></div>
-      <label class="bt-width" title="線の太さ">
-        <input type="range" id="shapeStrokeWidth" min="1" max="12" value="3">
-      </label>
-      <button id="btnShapeFill" class="btn-icon" title="塗りつぶし切替">塗</button>
+      <div id="shapeOnlyControls" class="shape-edit-group">
+        <label class="bt-width" title="線の太さ">
+          <input type="range" id="shapeStrokeWidth" min="1" max="12" value="3">
+        </label>
+        <button id="btnShapeFill" class="btn-icon" title="塗りつぶし切替">塗</button>
+      </div>
+      <div id="textOnlyControls" class="shape-edit-group hidden">
+        <select id="textFontFamily" class="text-font-select" title="フォント">
+          <option value="gothic">ゴシック</option>
+          <option value="mincho">明朝</option>
+          <option value="maru">丸ゴシック</option>
+          <option value="rounded">手書き風</option>
+        </select>
+        <label class="bt-width" title="文字サイズ">
+          <input type="range" id="textFontSize" min="20" max="200" value="60">
+        </label>
+        <button id="btnEditText" class="btn-icon" title="文字を編集">字</button>
+      </div>
       <button id="btnShapeRotateL" class="btn-icon" title="15度左回転">↶</button>
       <button id="btnShapeRotateR" class="btn-icon" title="15度右回転">↷</button>
       <button id="btnShapeDuplicate" class="btn-icon" title="複製">＋</button>
