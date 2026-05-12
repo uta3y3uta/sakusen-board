@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>作戦ボード</title>
+<title>フォーメーションメーカー</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -12,7 +12,7 @@
 
 <header class="toolbar">
   <div class="toolbar-left">
-    <h1 class="app-title">作戦ボード</h1>
+    <h1 class="app-title">フォーメーションメーカー</h1>
     <input type="text" id="boardName" class="board-name" placeholder="ボード名">
     <select id="sportSelect" class="design-select" title="デザインを選択">
       <option value="free">フリー</option>
@@ -262,7 +262,7 @@
       <button class="modal-close" data-close="shareModal">×</button>
     </div>
     <div class="modal-body">
-      <p class="hint">この作戦ボードを共有する公開URLです。受け取った人がブラウザで開くと，全く同じ配置・色・描画の作戦ボードを閲覧できます。</p>
+      <p class="hint">このボードを共有する公開URLです。受け取った人がブラウザで開くと，全く同じ配置・色・描画のボードを閲覧できます。</p>
       <textarea id="shareUrl" rows="4" readonly></textarea>
       <div class="share-actions">
         <button id="btnCopyShare" class="btn btn-primary">URLをコピー</button>
