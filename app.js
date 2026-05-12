@@ -292,17 +292,17 @@ const SPORT_SVGS = {
     </g>
   `,
 
-  // 8. ベースボール：内野ダイヤ・マウンド・ベース・ファウルライン・外野フェンス
+  // 8. ベースボール：内野ダイヤを下寄せにして外野にカードを置けるように
   baseball: () => `
-    <polygon points="500,440 600,340 500,240 400,340" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <line x1="500" y1="440" x2="220" y2="160" stroke="${STROKE}" stroke-width="1.5"/>
-    <line x1="500" y1="440" x2="780" y2="160" stroke="${STROKE}" stroke-width="1.5"/>
-    <path d="M 220 160 Q 500 0 780 160" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
-    <circle cx="500" cy="360" r="14" fill="none" stroke="${STROKE}" stroke-width="2"/>
-    <rect x="492" y="436" width="16" height="12" fill="${STROKE}"/>
-    <rect x="592" y="336" width="14" height="12" fill="${STROKE}"/>
-    <rect x="394" y="336" width="14" height="12" fill="${STROKE}"/>
-    <polygon points="500,232 508,244 500,250 492,244" fill="${STROKE}"/>
+    <polygon points="500,540 600,440 500,340 400,440" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <line x1="500" y1="540" x2="220" y2="260" stroke="${STROKE}" stroke-width="1.5"/>
+    <line x1="500" y1="540" x2="780" y2="260" stroke="${STROKE}" stroke-width="1.5"/>
+    <path d="M 220 260 Q 500 40 780 260" fill="none" stroke="${STROKE_SOFT}" stroke-width="1.5" stroke-dasharray="6,6"/>
+    <circle cx="500" cy="460" r="14" fill="none" stroke="${STROKE}" stroke-width="2"/>
+    <rect x="492" y="536" width="16" height="12" fill="${STROKE}"/>
+    <rect x="592" y="436" width="14" height="12" fill="${STROKE}"/>
+    <rect x="394" y="436" width="14" height="12" fill="${STROKE}"/>
+    <polygon points="500,332 508,344 500,350 492,344" fill="${STROKE}"/>
   `,
 
   // 8. バスケットボール：コート枠／センター／センターサークル／制限区域／フリースロー／3Pライン／リング
