@@ -26,6 +26,14 @@
       <option value="volleyball">ネット型</option>
       <option value="dodgeball">ドッジボール</option>
     </select>
+    <div class="history-group">
+      <button id="btnUndo" class="btn-icon" title="戻る（Ctrl+Z）" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+      </button>
+      <button id="btnRedo" class="btn-icon" title="進む（Ctrl+Y）" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -42,6 +50,15 @@
       <button id="btnBulkColor" class="btn btn-pill" title="色を一括変更">色変更</button>
     </div>
     <div class="member-actions secondary">
+      <div class="card-font-controls" title="名前カードのフォント・大きさ">
+        <select id="cardFontFamily" class="card-font-select" title="フォント">
+          <option value="gothic">ゴ</option>
+          <option value="mincho">明</option>
+          <option value="maru">丸</option>
+          <option value="rounded">手</option>
+        </select>
+        <input type="range" id="cardFontScale" min="0.6" max="2" step="0.1" value="1" title="文字の大きさ">
+      </div>
       <button id="btnPlaceAll" class="btn btn-pill btn-ghost" title="全員をボードへ配置">全配置</button>
       <button id="btnRemoveAll" class="btn btn-pill btn-ghost" title="全員ボードから外す">全外す</button>
     </div>

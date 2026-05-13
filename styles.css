@@ -197,6 +197,11 @@ body {
 .btn-icon:hover { background: var(--bg-soft); border-color: var(--accent); color: var(--accent-hover); }
 .btn-icon.btn-icon-danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger-hover); }
 .btn-icon.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-icon:disabled:hover { background: #fff; border-color: var(--border); color: var(--text-muted); }
+
+/* 戻る・進むのグループ */
+.history-group { display: inline-flex; gap: 4px; }
 
 #btnDrawToggle.active { background: var(--danger); color: #fff; border-color: var(--danger); }
 #btnDrawToggle.active:hover { background: var(--danger-hover); }
@@ -658,10 +663,53 @@ body {
 .card.team-opponent { border-color: var(--danger); }
 .card.team-own { border-color: var(--accent); }
 .card.selected {
+  z-index: 50;
+}
+/* 単独選択時：青点線の枠＋青リサイズ丸＋緑回転丸（■ と同じ見た目） */
+.card.selected .card-bbox {
+  position: absolute;
+  inset: -4px;
+  border: 1.5px dashed var(--accent-blue);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.card-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 2px solid var(--accent-blue);
+  border-radius: 50%;
+  touch-action: none;
+  z-index: 2;
+}
+.card-handle.handle-resize {
+  bottom: -9px;
+  right: -9px;
+  cursor: nwse-resize;
+}
+.card-handle.handle-rotate {
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  border-color: var(--share);
+}
+.card-handle.handle-rotate::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1.5px;
+  height: 14px;
+  background: var(--share);
+  transform: translateX(-50%);
+}
+/* 複数選択（グループ）はアウトラインのみ */
+.card.selected:not(:has(.card-bbox)) {
   outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(45, 140, 255, 0.18), 0 4px 12px rgba(95, 75, 40, 0.22);
-  z-index: 50;
 }
 .card .card-row {
   display: flex;
@@ -882,3 +930,57 @@ body {
 .copy-status { font-size: 12px; color: var(--share); font-weight: 600; }
 
 .edit-actions { display: flex; justify-content: space-between; gap: 8px; }
+
+/* ===== Card font controls (サイドバー：全配置の左隣) ===== */
+.card-font-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+}
+.card-font-select {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 4px;
+  cursor: pointer;
+  width: 38px;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
+}
+#cardFontScale { width: 70px; accent-color: var(--accent); }
+
+/* ===== Preview mode (共有URLで開いた時：ボードのみ全画面) ===== */
+body.preview-mode { overflow: hidden; }
+body.preview-mode .toolbar,
+body.preview-mode .sidebar,
+body.preview-mode .board-toolbar,
+body.preview-mode .shape-edit-toolbar { display: none !important; }
+body.preview-mode .layout {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+}
+body.preview-mode .board-area {
+  flex: 1;
+  width: 100vw;
+  height: 100vh;
+  padding: 8px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.preview-mode .board {
+  flex: none;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+}

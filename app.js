@@ -36,7 +36,9 @@ let state = {
   activeTeam: 'own',
   members: [],
   shapes: [],
-  drawings: []
+  drawings: [],
+  cardFontKey: 'gothic',
+  cardFontScale: 1.0
 };
 
 let editingMemberId = null;
@@ -56,11 +58,78 @@ let drawTool = {
 };
 
 // ============================================================
+// Undo / Redo history
+// ============================================================
+let historyStack = [];
+let redoStack = [];
+const HISTORY_LIMIT = 100;
+
+function pushHistory(json) {
+  if (historyStack.length > 0 && historyStack[historyStack.length - 1] === json) return;
+  historyStack.push(json);
+  if (historyStack.length > HISTORY_LIMIT) historyStack.shift();
+  redoStack = [];
+  updateHistoryButtons();
+}
+
+function applyState(json) {
+  state = JSON.parse(json);
+  // 再ロード時と同じ正規化を通す
+  if (!state.drawings) state.drawings = [];
+  if (!state.shapes) state.shapes = [];
+  if (typeof state.cardFontKey !== 'string') state.cardFontKey = 'gothic';
+  if (typeof state.cardFontScale !== 'number') state.cardFontScale = 1.0;
+  state.members.forEach(m => {
+    if (typeof m.scale !== 'number') m.scale = 1.0;
+    if (typeof m.rotation !== 'number') m.rotation = 0;
+  });
+  if (!SPORT_SVGS[state.sport]) state.sport = 'free';
+  try { localStorage.setItem(STORAGE_KEY, json); } catch (e) {}
+  selectedShapeId = null;
+  selectedMemberIds = [];
+  selectedKind = null;
+  // UI 反映
+  const bn = document.getElementById('boardName'); if (bn) bn.value = state.boardName || '';
+  const sp = document.getElementById('sportSelect'); if (sp) sp.value = state.sport || 'free';
+  const cf = document.getElementById('cardFontFamily'); if (cf) cf.value = state.cardFontKey;
+  const cs = document.getElementById('cardFontScale'); if (cs) cs.value = state.cardFontScale;
+  renderBoardBackground();
+  renderMemberList();
+  renderCards();
+  renderShapes();
+  redrawStrokes();
+  updateShapeToolbar();
+  updateHistoryButtons();
+}
+
+function undo() {
+  if (historyStack.length < 2) return;
+  redoStack.push(historyStack.pop());
+  applyState(historyStack[historyStack.length - 1]);
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  const json = redoStack.pop();
+  historyStack.push(json);
+  applyState(json);
+}
+
+function updateHistoryButtons() {
+  const u = document.getElementById('btnUndo');
+  const r = document.getElementById('btnRedo');
+  if (u) u.disabled = historyStack.length < 2;
+  if (r) r.disabled = redoStack.length === 0;
+}
+
+// ============================================================
 // State persistence
 // ============================================================
 function saveState() {
+  const json = JSON.stringify(state);
+  pushHistory(json);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, json);
   } catch (e) {
     console.warn('保存に失敗しました', e);
   }
@@ -83,6 +152,13 @@ function loadState() {
   }
   if (!state.drawings) state.drawings = [];
   if (!state.shapes) state.shapes = [];
+  if (typeof state.cardFontKey !== 'string') state.cardFontKey = 'gothic';
+  if (typeof state.cardFontScale !== 'number') state.cardFontScale = 1.0;
+  // 既存メンバーへの後方互換用フィールド追加
+  state.members.forEach(m => {
+    if (typeof m.scale !== 'number') m.scale = 1.0;
+    if (typeof m.rotation !== 'number') m.rotation = 0;
+  });
   // 削除済みデザインのフォールバック
   if (!SPORT_SVGS[state.sport]) state.sport = 'free';
 }
@@ -110,7 +186,9 @@ function makeMember({ name = '', other = '', team = 'own', number = '' } = {}) {
     cardColor: c.card,
     textColor: c.text,
     x: 0.5, y: 0.5,
-    onBoard: false
+    onBoard: false,
+    scale: 1.0,
+    rotation: 0
   };
 }
 
@@ -385,10 +463,6 @@ function renderMemberList() {
     numLabel.textContent = m.number || String(idx + 1);
     numCell.append(numCheck, numLabel);
 
-    const swatch = document.createElement('span');
-    swatch.className = 'member-swatch';
-    swatch.style.background = m.cardColor;
-
     const nameWrap = document.createElement('div');
     nameWrap.className = 'member-name';
     const nameText = document.createElement('span');
@@ -418,7 +492,7 @@ function renderMemberList() {
     edit.title = '編集';
     edit.addEventListener('click', () => openEditModal(m.id));
 
-    li.append(numCell, swatch, nameWrap, toggle, edit);
+    li.append(numCell, nameWrap, toggle, edit);
     ul.appendChild(li);
   });
 }
@@ -448,6 +522,9 @@ function renderCards() {
   const indexMap = {};
   state.members.forEach((m, i) => { indexMap[m.id] = i; });
 
+  const fontFamily = FONT_FAMILIES[state.cardFontKey] || FONT_FAMILIES.gothic;
+  const fontScale = state.cardFontScale || 1.0;
+
   state.members.filter(m => m.onBoard).forEach(m => {
     const card = document.createElement('div');
     card.className = 'card team-' + m.team;
@@ -458,6 +535,12 @@ function renderCards() {
     card.style.top = (m.y * 100) + '%';
     card.style.background = m.cardColor;
     card.style.color = m.textColor;
+    card.style.fontFamily = fontFamily;
+    const scale = (typeof m.scale === 'number' ? m.scale : 1.0);
+    const rotation = (typeof m.rotation === 'number' ? m.rotation : 0);
+    // 13px はカードの基底フォントサイズ
+    card.style.fontSize = (13 * fontScale) + 'px';
+    card.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale})`;
 
     const row = document.createElement('div');
     row.className = 'card-row';
@@ -483,6 +566,21 @@ function renderCards() {
       card.appendChild(otherSpan);
     }
 
+    // 単独選択時のみ，リサイズ・回転ハンドルを表示（■と同じ見た目）
+    if (selectedKind === 'card' && selectedMemberIds.length === 1 && selectedMemberIds[0] === m.id) {
+      const bbox = document.createElement('div');
+      bbox.className = 'card-bbox';
+      card.appendChild(bbox);
+      const hResize = document.createElement('div');
+      hResize.className = 'card-handle handle-resize';
+      hResize.dataset.handle = 'resize';
+      card.appendChild(hResize);
+      const hRotate = document.createElement('div');
+      hRotate.className = 'card-handle handle-rotate';
+      hRotate.dataset.handle = 'rotate';
+      card.appendChild(hRotate);
+    }
+
     attachCardDrag(card, m);
     card.addEventListener('dblclick', () => openEditModal(m.id));
     layer.appendChild(card);
@@ -490,32 +588,50 @@ function renderCards() {
 }
 
 function attachCardDrag(card, member) {
-  let startX, startY;
-  let groupOrigins = []; // [{id, x, y}]
-  let dragging = false;
+  let action = null; // 'move' | 'resize' | 'rotate'
+  let start = {};
+  let groupOrigins = []; // [{id, x, y}] for move
 
   const onDown = (e) => {
     if (document.getElementById('board').classList.contains('draw-mode')) return;
     e.preventDefault();
     e.stopPropagation();
-    dragging = true;
-    card.classList.add('dragging');
-
-    // If this card is part of a group, drag the whole group.
-    // Otherwise, switch to single selection.
-    if (!selectedMemberIds.includes(member.id)) {
-      selectCard(member.id);
-    }
-    const ids = selectedMemberIds.length > 0 ? [...selectedMemberIds] : [member.id];
-    groupOrigins = ids
-      .map(id => state.members.find(m => m.id === id))
-      .filter(Boolean)
-      .filter(m => m.onBoard)
-      .map(m => ({ id: m.id, x: m.x, y: m.y }));
-
     const p = e.touches ? e.touches[0] : e;
-    startX = p.clientX;
-    startY = p.clientY;
+    const handle = e.target.closest('.card-handle');
+
+    if (handle) {
+      // 単独選択中のみハンドルが存在するので，このカードを選択状態にする
+      selectCard(member.id);
+      action = handle.dataset.handle === 'resize' ? 'resize' : 'rotate';
+      const boardRect = document.getElementById('board').getBoundingClientRect();
+      const centerX = boardRect.left + member.x * boardRect.width;
+      const centerY = boardRect.top + member.y * boardRect.height;
+      // offsetWidth/Height は transform を無視するので，そのまま自然サイズとして使える
+      const naturalW = card.offsetWidth;
+      const naturalH = card.offsetHeight;
+      start = {
+        clientX: p.clientX, clientY: p.clientY,
+        centerX, centerY,
+        scale: member.scale || 1.0,
+        rotation: member.rotation || 0,
+        naturalW, naturalH,
+        halfDiag: Math.sqrt((naturalW / 2) ** 2 + (naturalH / 2) ** 2),
+        startMouseAngle: Math.atan2(p.clientY - centerY, p.clientX - centerX) * 180 / Math.PI
+      };
+    } else {
+      action = 'move';
+      card.classList.add('dragging');
+      if (!selectedMemberIds.includes(member.id)) {
+        selectCard(member.id);
+      }
+      const ids = selectedMemberIds.length > 0 ? [...selectedMemberIds] : [member.id];
+      groupOrigins = ids
+        .map(id => state.members.find(m => m.id === id))
+        .filter(Boolean)
+        .filter(m => m.onBoard)
+        .map(m => ({ id: m.id, x: m.x, y: m.y }));
+      start = { clientX: p.clientX, clientY: p.clientY };
+    }
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
@@ -524,41 +640,60 @@ function attachCardDrag(card, member) {
   };
 
   const onMove = (e) => {
-    if (!dragging) return;
+    if (!action) return;
     e.preventDefault();
     const p = e.touches ? e.touches[0] : e;
-    const board = document.getElementById('board');
-    const rect = board.getBoundingClientRect();
-    let dx = (p.clientX - startX) / rect.width;
-    let dy = (p.clientY - startY) / rect.height;
 
-    // Clamp delta so no member in the group goes out of bounds
-    let minDx = -1, maxDx = 1, minDy = -1, maxDy = 1;
-    groupOrigins.forEach(o => {
-      minDx = Math.max(minDx, -o.x);
-      maxDx = Math.min(maxDx, 1 - o.x);
-      minDy = Math.max(minDy, -o.y);
-      maxDy = Math.min(maxDy, 1 - o.y);
-    });
-    dx = clamp(dx, minDx, maxDx);
-    dy = clamp(dy, minDy, maxDy);
-
-    groupOrigins.forEach(o => {
-      const m = state.members.find(x => x.id === o.id);
-      if (!m) return;
-      m.x = o.x + dx;
-      m.y = o.y + dy;
-      const el = document.querySelector(`.card[data-id="${o.id}"]`);
-      if (el) {
-        el.style.left = (m.x * 100) + '%';
-        el.style.top = (m.y * 100) + '%';
-      }
-    });
+    if (action === 'move') {
+      const board = document.getElementById('board');
+      const rect = board.getBoundingClientRect();
+      let dx = (p.clientX - start.clientX) / rect.width;
+      let dy = (p.clientY - start.clientY) / rect.height;
+      let minDx = -1, maxDx = 1, minDy = -1, maxDy = 1;
+      groupOrigins.forEach(o => {
+        minDx = Math.max(minDx, -o.x);
+        maxDx = Math.min(maxDx, 1 - o.x);
+        minDy = Math.max(minDy, -o.y);
+        maxDy = Math.min(maxDy, 1 - o.y);
+      });
+      dx = clamp(dx, minDx, maxDx);
+      dy = clamp(dy, minDy, maxDy);
+      groupOrigins.forEach(o => {
+        const m = state.members.find(x => x.id === o.id);
+        if (!m) return;
+        m.x = o.x + dx;
+        m.y = o.y + dy;
+        const el = document.querySelector(`.card[data-id="${o.id}"]`);
+        if (el) {
+          el.style.left = (m.x * 100) + '%';
+          el.style.top = (m.y * 100) + '%';
+        }
+      });
+    } else if (action === 'resize') {
+      // マウス位置をカードのローカル座標（回転を逆適用）に変換
+      const mx = p.clientX - start.centerX;
+      const my = p.clientY - start.centerY;
+      const rad = -start.rotation * Math.PI / 180;
+      const lx = mx * Math.cos(rad) - my * Math.sin(rad);
+      const ly = mx * Math.sin(rad) + my * Math.cos(rad);
+      const localR = Math.sqrt(lx * lx + ly * ly);
+      let newScale = localR / start.halfDiag;
+      newScale = clamp(newScale, 0.4, 4.0);
+      member.scale = newScale;
+      card.style.transform = `translate(-50%, -50%) rotate(${start.rotation}deg) scale(${newScale})`;
+    } else if (action === 'rotate') {
+      const cur = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX) * 180 / Math.PI;
+      let newRot = start.rotation + (cur - start.startMouseAngle);
+      // Shift で 15° スナップ
+      if (e.shiftKey) newRot = Math.round(newRot / 15) * 15;
+      member.rotation = newRot;
+      card.style.transform = `translate(-50%, -50%) rotate(${newRot}deg) scale(${member.scale || 1.0})`;
+    }
   };
 
   const onUp = () => {
-    if (!dragging) return;
-    dragging = false;
+    if (!action) return;
+    action = null;
     card.classList.remove('dragging');
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
@@ -801,20 +936,17 @@ function selectCards(ids) {
   selectedMemberIds = Array.isArray(ids) ? [...ids] : [];
   if (selectedShapeId) {
     selectedShapeId = null;
-    renderShapes();
     updateShapeToolbar();
   }
-  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
-  selectedMemberIds.forEach(id => {
-    const el = document.querySelector(`.card[data-id="${id}"]`);
-    if (el) el.classList.add('selected');
-  });
+  // 再描画して，単独選択時にハンドル付きで描き直す
+  renderCards();
+  renderShapes();
 }
 
 function deselectCard() {
   if (selectedKind === 'card') selectedKind = null;
   selectedMemberIds = [];
-  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+  renderCards();
 }
 
 function deleteSelected() {
@@ -1537,6 +1669,22 @@ function wireEvents() {
     renderCards();
   });
 
+  // 名前カードのフォント・大きさ
+  document.getElementById('cardFontFamily').addEventListener('change', e => {
+    state.cardFontKey = e.target.value;
+    saveState();
+    renderCards();
+  });
+  document.getElementById('cardFontScale').addEventListener('input', e => {
+    state.cardFontScale = parseFloat(e.target.value);
+    renderCards();
+  });
+  document.getElementById('cardFontScale').addEventListener('change', () => saveState());
+
+  // Undo / Redo
+  document.getElementById('btnUndo').addEventListener('click', undo);
+  document.getElementById('btnRedo').addEventListener('click', redo);
+
   // Board toolbar — drawing
   document.getElementById('btnDrawToggle').addEventListener('click', toggleDrawMode);
   document.querySelectorAll('.bt-mode').forEach(btn => {
@@ -1597,6 +1745,15 @@ function wireEvents() {
         document.activeElement.tagName !== 'TEXTAREA') {
       if (selectedKind === 'shape' && selectedShapeId) { e.preventDefault(); deleteSelectedShape(); }
       else if (selectedKind === 'card' && selectedMemberIds.length > 0) { e.preventDefault(); deleteSelected(); }
+    }
+    // Undo / Redo
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      undo();
+    } else if (((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) ||
+               ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+      e.preventDefault();
+      redo();
     }
   });
 
@@ -1685,9 +1842,15 @@ function initPickers() {
 }
 
 function init() {
+  // 共有URLで開かれた場合はプレビューモード（ボードのみ全画面）
+  const isPreview = /board=/.test(location.hash || '');
+  if (isPreview) document.body.classList.add('preview-mode');
+
   loadState();
   document.getElementById('boardName').value = state.boardName || '';
   document.getElementById('sportSelect').value = state.sport || 'free';
+  const cf = document.getElementById('cardFontFamily'); if (cf) cf.value = state.cardFontKey || 'gothic';
+  const cs = document.getElementById('cardFontScale'); if (cs) cs.value = state.cardFontScale || 1.0;
   initPickers();
   renderBoardBackground();
   renderMemberList();
@@ -1696,6 +1859,10 @@ function init() {
   setupDrawCanvas();
   wireEvents();
   updateShapeToolbar();
+  // 履歴の起点をセット
+  historyStack = [JSON.stringify(state)];
+  redoStack = [];
+  updateHistoryButtons();
 }
 
 document.addEventListener('DOMContentLoaded', init);
