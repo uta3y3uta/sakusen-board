@@ -50,15 +50,12 @@
       <button id="btnBulkColor" class="btn btn-pill" title="色を一括変更">色変更</button>
     </div>
     <div class="member-actions secondary">
-      <div class="card-font-controls" title="名前カードのフォント・大きさ">
-        <select id="cardFontFamily" class="card-font-select" title="フォント">
-          <option value="gothic">ゴ</option>
-          <option value="mincho">明</option>
-          <option value="maru">丸</option>
-          <option value="rounded">手</option>
-        </select>
-        <input type="range" id="cardFontScale" min="0.6" max="2" step="0.1" value="1" title="文字の大きさ">
-      </div>
+      <select id="cardFontFamily" class="card-font-select" title="名前カードのフォント">
+        <option value="gothic">ゴ</option>
+        <option value="mincho">明</option>
+        <option value="maru">丸</option>
+        <option value="rounded">手</option>
+      </select>
       <button id="btnPlaceAll" class="btn btn-pill btn-ghost" title="全員をボードへ配置">全配置</button>
       <button id="btnRemoveAll" class="btn btn-pill btn-ghost" title="全員ボードから外す">全外す</button>
     </div>
@@ -99,6 +96,17 @@
         <button class="bt-shape" data-shape="double-arrow" title="両矢印">↔</button>
         <button class="bt-shape" data-shape="line" title="線">／</button>
         <button class="bt-shape" data-shape="text" title="テキスト">T</button>
+      </div>
+
+      <div class="bt-group bt-group-bulk" title="名前カード一括サイズ">
+        <label class="bulk-slider" title="名前カード全体の大きさを一括変更">
+          <span class="bulk-slider-label">カード</span>
+          <input type="range" id="cardScaleBulk" min="0.5" max="2.5" step="0.05" value="1">
+        </label>
+        <label class="bulk-slider" title="名前カードのフォントサイズを一括変更">
+          <span class="bulk-slider-label">フォント</span>
+          <input type="range" id="cardFontScaleBulk" min="0.6" max="2" step="0.05" value="1">
+        </label>
       </div>
 
       <div class="bt-group bt-group-right">
@@ -316,6 +324,16 @@
       </div>
       <label class="checkbox-label"><input type="checkbox" id="editShowNumber"> 番号をカードに表示する</label>
       <label class="checkbox-label"><input type="checkbox" id="editOnBoard"> ボード上に表示する</label>
+      <label class="slider-row">
+        <span class="slider-label">カードの大きさ</span>
+        <input type="range" id="editCardScale" min="0.4" max="4" step="0.05" value="1">
+        <span class="slider-value" id="editCardScaleVal">1.00</span>
+      </label>
+      <label class="slider-row">
+        <span class="slider-label">フォントの大きさ</span>
+        <input type="range" id="editFontScale" min="0.5" max="3" step="0.05" value="1">
+        <span class="slider-value" id="editFontScaleVal">1.00</span>
+      </label>
       <div class="edit-actions">
         <button id="btnSaveEdit" class="btn btn-primary">保存</button>
         <button id="btnDeleteMember" class="btn btn-danger">削除</button>

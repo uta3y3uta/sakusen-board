@@ -315,7 +315,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.3px;
 }
-.lh-num { width: 52px; }
+.lh-num { width: 36px; text-align: center; }
 .lh-name { flex: 1; }
 .lh-act { width: 64px; }
 
@@ -360,10 +360,9 @@ body {
 .member-num-cell {
   display: flex;
   align-items: center;
-  gap: 4px;
-  width: 52px;
+  justify-content: center;
+  width: 36px;
 }
-.member-num-check { width: 14px; height: 14px; cursor: pointer; margin: 0; accent-color: var(--accent); }
 .member-num {
   font-size: 11px;
   color: var(--text-muted);
@@ -931,30 +930,71 @@ body {
 
 .edit-actions { display: flex; justify-content: space-between; gap: 8px; }
 
-/* ===== Card font controls (サイドバー：全配置の左隣) ===== */
-.card-font-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-}
+/* ===== Card font controls (サイドバー：フォントファミリーのみ) ===== */
 .card-font-select {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
-  padding: 2px 4px;
+  padding: 4px 6px;
   cursor: pointer;
-  width: 38px;
+  width: 42px;
   text-align: center;
   appearance: none;
   -webkit-appearance: none;
 }
-#cardFontScale { width: 70px; accent-color: var(--accent); }
+
+/* ===== Bulk size sliders (ボードツールバー：T の右隣) ===== */
+.bt-group-bulk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+}
+.bulk-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+.bulk-slider-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bulk-slider input[type="range"] {
+  width: 70px;
+  accent-color: var(--accent);
+}
+
+/* ===== Edit modal sliders ===== */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.slider-row .slider-label {
+  flex: 0 0 110px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.slider-row .slider-value {
+  flex: 0 0 38px;
+  font-size: 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
 
 /* ===== Preview mode (共有URLで開いた時：ボードのみ全画面) ===== */
 body.preview-mode { overflow: hidden; }

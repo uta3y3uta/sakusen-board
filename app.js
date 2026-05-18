@@ -38,7 +38,8 @@ let state = {
   shapes: [],
   drawings: [],
   cardFontKey: 'gothic',
-  cardFontScale: 1.0
+  cardFontScale: 1.0,
+  cardScale: 1.0
 };
 
 let editingMemberId = null;
@@ -79,9 +80,11 @@ function applyState(json) {
   if (!state.shapes) state.shapes = [];
   if (typeof state.cardFontKey !== 'string') state.cardFontKey = 'gothic';
   if (typeof state.cardFontScale !== 'number') state.cardFontScale = 1.0;
+  if (typeof state.cardScale !== 'number') state.cardScale = 1.0;
   state.members.forEach(m => {
     if (typeof m.scale !== 'number') m.scale = 1.0;
     if (typeof m.rotation !== 'number') m.rotation = 0;
+    if (typeof m.fontScale !== 'number') m.fontScale = 1.0;
   });
   if (!SPORT_SVGS[state.sport]) state.sport = 'free';
   try { localStorage.setItem(STORAGE_KEY, json); } catch (e) {}
@@ -92,7 +95,8 @@ function applyState(json) {
   const bn = document.getElementById('boardName'); if (bn) bn.value = state.boardName || '';
   const sp = document.getElementById('sportSelect'); if (sp) sp.value = state.sport || 'free';
   const cf = document.getElementById('cardFontFamily'); if (cf) cf.value = state.cardFontKey;
-  const cs = document.getElementById('cardFontScale'); if (cs) cs.value = state.cardFontScale;
+  const csb = document.getElementById('cardScaleBulk'); if (csb) csb.value = state.cardScale;
+  const cfsb = document.getElementById('cardFontScaleBulk'); if (cfsb) cfsb.value = state.cardFontScale;
   renderBoardBackground();
   renderMemberList();
   renderCards();
@@ -154,10 +158,12 @@ function loadState() {
   if (!state.shapes) state.shapes = [];
   if (typeof state.cardFontKey !== 'string') state.cardFontKey = 'gothic';
   if (typeof state.cardFontScale !== 'number') state.cardFontScale = 1.0;
+  if (typeof state.cardScale !== 'number') state.cardScale = 1.0;
   // 既存メンバーへの後方互換用フィールド追加
   state.members.forEach(m => {
     if (typeof m.scale !== 'number') m.scale = 1.0;
     if (typeof m.rotation !== 'number') m.rotation = 0;
+    if (typeof m.fontScale !== 'number') m.fontScale = 1.0;
   });
   // 削除済みデザインのフォールバック
   if (!SPORT_SVGS[state.sport]) state.sport = 'free';
@@ -188,7 +194,8 @@ function makeMember({ name = '', other = '', team = 'own', number = '' } = {}) {
     x: 0.5, y: 0.5,
     onBoard: false,
     scale: 1.0,
-    rotation: 0
+    rotation: 0,
+    fontScale: 1.0
   };
 }
 
@@ -446,22 +453,10 @@ function renderMemberList() {
 
     const numCell = document.createElement('div');
     numCell.className = 'member-num-cell';
-    const numCheck = document.createElement('input');
-    numCheck.type = 'checkbox';
-    numCheck.className = 'member-num-check';
-    numCheck.checked = !!m.showNumber;
-    numCheck.title = '番号をカードに表示';
-    numCheck.addEventListener('change', () => {
-      m.showNumber = numCheck.checked;
-      if (!m.number) m.number = String(idx + 1);
-      saveState();
-      renderMemberList();
-      renderCards();
-    });
     const numLabel = document.createElement('span');
     numLabel.className = 'member-num';
     numLabel.textContent = m.number || String(idx + 1);
-    numCell.append(numCheck, numLabel);
+    numCell.append(numLabel);
 
     const nameWrap = document.createElement('div');
     nameWrap.className = 'member-name';
@@ -523,7 +518,8 @@ function renderCards() {
   state.members.forEach((m, i) => { indexMap[m.id] = i; });
 
   const fontFamily = FONT_FAMILIES[state.cardFontKey] || FONT_FAMILIES.gothic;
-  const fontScale = state.cardFontScale || 1.0;
+  const bulkFontScale = state.cardFontScale || 1.0;
+  const bulkCardScale = state.cardScale || 1.0;
 
   state.members.filter(m => m.onBoard).forEach(m => {
     const card = document.createElement('div');
@@ -536,11 +532,14 @@ function renderCards() {
     card.style.background = m.cardColor;
     card.style.color = m.textColor;
     card.style.fontFamily = fontFamily;
-    const scale = (typeof m.scale === 'number' ? m.scale : 1.0);
+    const indivScale = (typeof m.scale === 'number' ? m.scale : 1.0);
+    const indivFontScale = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
     const rotation = (typeof m.rotation === 'number' ? m.rotation : 0);
+    const finalScale = bulkCardScale * indivScale;
+    const finalFont = 13 * bulkFontScale * indivFontScale;
     // 13px はカードの基底フォントサイズ
-    card.style.fontSize = (13 * fontScale) + 'px';
-    card.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale})`;
+    card.style.fontSize = finalFont + 'px';
+    card.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${finalScale})`;
 
     const row = document.createElement('div');
     row.className = 'card-row';
@@ -677,17 +676,20 @@ function attachCardDrag(card, member) {
       const lx = mx * Math.cos(rad) - my * Math.sin(rad);
       const ly = mx * Math.sin(rad) + my * Math.cos(rad);
       const localR = Math.sqrt(lx * lx + ly * ly);
-      let newScale = localR / start.halfDiag;
-      newScale = clamp(newScale, 0.4, 4.0);
-      member.scale = newScale;
-      card.style.transform = `translate(-50%, -50%) rotate(${start.rotation}deg) scale(${newScale})`;
+      const totalScale = localR / start.halfDiag;
+      const bulk = state.cardScale || 1.0;
+      let newIndiv = clamp(totalScale / bulk, 0.3, 5.0);
+      member.scale = newIndiv;
+      const finalScale = bulk * newIndiv;
+      card.style.transform = `translate(-50%, -50%) rotate(${start.rotation}deg) scale(${finalScale})`;
     } else if (action === 'rotate') {
       const cur = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX) * 180 / Math.PI;
       let newRot = start.rotation + (cur - start.startMouseAngle);
       // Shift で 15° スナップ
       if (e.shiftKey) newRot = Math.round(newRot / 15) * 15;
       member.rotation = newRot;
-      card.style.transform = `translate(-50%, -50%) rotate(${newRot}deg) scale(${member.scale || 1.0})`;
+      const finalScale = (state.cardScale || 1.0) * (member.scale || 1.0);
+      card.style.transform = `translate(-50%, -50%) rotate(${newRot}deg) scale(${finalScale})`;
     }
   };
 
@@ -1494,6 +1496,16 @@ function openEditModal(memberId) {
   pickers.editText.setValue(m.textColor);
   document.getElementById('editShowNumber').checked = !!m.showNumber;
   document.getElementById('editOnBoard').checked = m.onBoard;
+  const cs = document.getElementById('editCardScale');
+  const fs = document.getElementById('editFontScale');
+  const csv = document.getElementById('editCardScaleVal');
+  const fsv = document.getElementById('editFontScaleVal');
+  const indivScale = (typeof m.scale === 'number' ? m.scale : 1.0);
+  const indivFont = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
+  if (cs) cs.value = indivScale;
+  if (fs) fs.value = indivFont;
+  if (csv) csv.textContent = indivScale.toFixed(2);
+  if (fsv) fsv.textContent = indivFont.toFixed(2);
   openModal('memberEditModal');
 }
 
@@ -1508,6 +1520,10 @@ function saveEdit() {
   m.textColor = pickers.editText.getValue();
   m.showNumber = document.getElementById('editShowNumber').checked;
   m.onBoard = document.getElementById('editOnBoard').checked;
+  const cs = document.getElementById('editCardScale');
+  const fs = document.getElementById('editFontScale');
+  if (cs) m.scale = parseFloat(cs.value) || 1.0;
+  if (fs) m.fontScale = parseFloat(fs.value) || 1.0;
   saveState();
   renderMemberList();
   renderCards();
@@ -1669,17 +1685,54 @@ function wireEvents() {
     renderCards();
   });
 
-  // 名前カードのフォント・大きさ
+  // 名前カードのフォント
   document.getElementById('cardFontFamily').addEventListener('change', e => {
     state.cardFontKey = e.target.value;
     saveState();
     renderCards();
   });
-  document.getElementById('cardFontScale').addEventListener('input', e => {
-    state.cardFontScale = parseFloat(e.target.value);
-    renderCards();
-  });
-  document.getElementById('cardFontScale').addEventListener('change', () => saveState());
+
+  // 一括サイズスライダー（Tの右隣）
+  const cardScaleBulk = document.getElementById('cardScaleBulk');
+  const cardFontScaleBulk = document.getElementById('cardFontScaleBulk');
+  if (cardScaleBulk) {
+    cardScaleBulk.addEventListener('input', e => {
+      state.cardScale = parseFloat(e.target.value);
+      renderCards();
+    });
+    cardScaleBulk.addEventListener('change', () => saveState());
+  }
+  if (cardFontScaleBulk) {
+    cardFontScaleBulk.addEventListener('input', e => {
+      state.cardFontScale = parseFloat(e.target.value);
+      renderCards();
+    });
+    cardFontScaleBulk.addEventListener('change', () => saveState());
+  }
+
+  // 編集モーダルのスライダー（数値表示の即時更新）
+  const editCardScale = document.getElementById('editCardScale');
+  const editFontScale = document.getElementById('editFontScale');
+  if (editCardScale) {
+    editCardScale.addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      document.getElementById('editCardScaleVal').textContent = v.toFixed(2);
+      if (editingMemberId) {
+        const m = state.members.find(x => x.id === editingMemberId);
+        if (m) { m.scale = v; renderCards(); }
+      }
+    });
+  }
+  if (editFontScale) {
+    editFontScale.addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      document.getElementById('editFontScaleVal').textContent = v.toFixed(2);
+      if (editingMemberId) {
+        const m = state.members.find(x => x.id === editingMemberId);
+        if (m) { m.fontScale = v; renderCards(); }
+      }
+    });
+  }
 
   // Undo / Redo
   document.getElementById('btnUndo').addEventListener('click', undo);
@@ -1850,7 +1903,8 @@ function init() {
   document.getElementById('boardName').value = state.boardName || '';
   document.getElementById('sportSelect').value = state.sport || 'free';
   const cf = document.getElementById('cardFontFamily'); if (cf) cf.value = state.cardFontKey || 'gothic';
-  const cs = document.getElementById('cardFontScale'); if (cs) cs.value = state.cardFontScale || 1.0;
+  const csb = document.getElementById('cardScaleBulk'); if (csb) csb.value = state.cardScale || 1.0;
+  const cfsb = document.getElementById('cardFontScaleBulk'); if (cfsb) cfsb.value = state.cardFontScale || 1.0;
   initPickers();
   renderBoardBackground();
   renderMemberList();
