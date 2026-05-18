@@ -665,17 +665,19 @@ function attachCardDrag(card, member) {
       const boardRect = document.getElementById('board').getBoundingClientRect();
       const centerX = boardRect.left + member.x * boardRect.width;
       const centerY = boardRect.top + member.y * boardRect.height;
-      // offsetWidth/Height は transform を無視するので，そのまま自然サイズとして使える
-      const naturalW = card.offsetWidth;
-      const naturalH = card.offsetHeight;
+      // ハンドルを掴んだ瞬間のマウスローカル距離を基準にする（最初の瞬間にサイズが変わらないように）
+      const rotRad = -(member.rotation || 0) * Math.PI / 180;
+      const dx0 = p.clientX - centerX;
+      const dy0 = p.clientY - centerY;
+      const lx0 = dx0 * Math.cos(rotRad) - dy0 * Math.sin(rotRad);
+      const ly0 = dx0 * Math.sin(rotRad) + dy0 * Math.cos(rotRad);
       start = {
         clientX: p.clientX, clientY: p.clientY,
         centerX, centerY,
         scale: member.scale || 1.0,
         rotation: member.rotation || 0,
-        naturalW, naturalH,
-        halfDiag: Math.sqrt((naturalW / 2) ** 2 + (naturalH / 2) ** 2),
-        startMouseAngle: Math.atan2(p.clientY - centerY, p.clientX - centerX) * 180 / Math.PI
+        startLocalR: Math.sqrt(lx0 * lx0 + ly0 * ly0),
+        startMouseAngle: Math.atan2(dy0, dx0) * 180 / Math.PI
       };
     } else {
       action = 'move';
@@ -739,11 +741,11 @@ function attachCardDrag(card, member) {
       const lx = mx * Math.cos(rad) - my * Math.sin(rad);
       const ly = mx * Math.sin(rad) + my * Math.cos(rad);
       const localR = Math.sqrt(lx * lx + ly * ly);
-      const totalScale = localR / start.halfDiag;
-      const bulk = state.cardScale || 1.0;
-      let newIndiv = clamp(totalScale / bulk, 0.2, 6.0);
+      // 掴んだ瞬間からの相対比でスケールを変える（最初にガクッと変わらない）
+      const ratio = start.startLocalR > 0 ? (localR / start.startLocalR) : 1.0;
+      const newIndiv = clamp(start.scale * ratio, 0.2, 6.0);
       member.scale = newIndiv;
-      const finalScale = bulk * newIndiv;
+      const finalScale = (state.cardScale || 1.0) * newIndiv;
       card.style.transform = `translate(-50%, -50%) rotate(${start.rotation}deg) scale(${finalScale})`;
     } else if (action === 'rotate') {
       const cur = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX) * 180 / Math.PI;
@@ -924,13 +926,21 @@ function attachShapeEvents(div, shape) {
       selectShape(shape.id);
     }
 
+    // ハンドルを掴んだ瞬間のローカル座標を基準にする（最初にガクッと変わらないように）
+    const sRotRad = -(shape.rotation || 0) * Math.PI / 180;
+    const sdx0 = p.clientX - centerX;
+    const sdy0 = p.clientY - centerY;
+    const slx0 = sdx0 * Math.cos(sRotRad) - sdy0 * Math.sin(sRotRad);
+    const sly0 = sdx0 * Math.sin(sRotRad) + sdy0 * Math.cos(sRotRad);
     start = {
       clientX: p.clientX, clientY: p.clientY,
       boardWidth: boardRect.width, boardHeight: boardRect.height,
       x: shape.x, y: shape.y,
       w: shape.w, h: shape.h,
       rotation: shape.rotation,
-      centerX, centerY
+      centerX, centerY,
+      startLocalX: Math.abs(slx0),
+      startLocalY: Math.abs(sly0)
     };
 
     document.addEventListener('mousemove', onMove);
@@ -959,14 +969,15 @@ function attachShapeEvents(div, shape) {
       const rad = -start.rotation * Math.PI / 180;
       const localX = mx * Math.cos(rad) - my * Math.sin(rad);
       const localY = mx * Math.sin(rad) + my * Math.cos(rad);
-      // 図形を極小まで縮められるよう最小サイズを 4px に
-      const minPx = 4;
-      const halfWpx = Math.max(minPx, Math.abs(localX));
-      const halfHpx = Math.max(minPx, Math.abs(localY));
-      shape.w = (halfWpx * 2) / start.boardWidth;
-      shape.h = (halfHpx * 2) / start.boardHeight;
-      div.style.width = (halfWpx * 2) + 'px';
-      div.style.height = (halfHpx * 2) + 'px';
+      // 掴んだ瞬間からの相対比でサイズを変える（最初にガクッと変わらない）
+      const ratioX = start.startLocalX > 0 ? Math.abs(localX) / start.startLocalX : 1.0;
+      const ratioY = start.startLocalY > 0 ? Math.abs(localY) / start.startLocalY : 1.0;
+      const minW = 8 / start.boardWidth;   // 4px 半 × 2
+      const minH = 8 / start.boardHeight;
+      shape.w = Math.max(minW, start.w * ratioX);
+      shape.h = Math.max(minH, start.h * ratioY);
+      div.style.width = (shape.w * start.boardWidth) + 'px';
+      div.style.height = (shape.h * start.boardHeight) + 'px';
     } else if (action === 'rotate') {
       const angle = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX);
       shape.rotation = (angle * 180 / Math.PI) + 90;
