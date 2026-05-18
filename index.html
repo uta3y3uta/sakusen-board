@@ -46,8 +46,7 @@
     </div>
     <div class="member-actions">
       <button id="btnImport" class="btn btn-pill btn-primary" title="名簿の取り込み">取込</button>
-      <button id="btnAddBlank" class="btn btn-pill" title="空白カードを追加">＋ 空白</button>
-      <button id="btnBulkColor" class="btn btn-pill" title="色を一括変更">色変更</button>
+      <button id="btnAddBlank" class="btn btn-pill" title="空白カードを追加">＋</button>
     </div>
     <div class="member-actions secondary">
       <select id="cardFontFamily" class="card-font-select" title="名前カードのフォント">
@@ -55,7 +54,14 @@
         <option value="mincho">明</option>
         <option value="maru">丸</option>
         <option value="rounded">手</option>
+        <option value="bold">太</option>
+        <option value="thin">細</option>
+        <option value="kyoukasho">教</option>
+        <option value="kaisho">楷</option>
+        <option value="gyousho">行</option>
+        <option value="pop">ポ</option>
       </select>
+      <button id="btnBulkColor" class="btn btn-pill" title="色を一括変更">全色変</button>
       <button id="btnPlaceAll" class="btn btn-pill btn-ghost" title="全員をボードへ配置">全配置</button>
       <button id="btnRemoveAll" class="btn btn-pill btn-ghost" title="全員ボードから外す">全外す</button>
     </div>
@@ -158,6 +164,12 @@
           <option value="mincho">明朝</option>
           <option value="maru">丸ゴシック</option>
           <option value="rounded">手書き風</option>
+          <option value="bold">太字ゴシック</option>
+          <option value="thin">細字ゴシック</option>
+          <option value="kyoukasho">教科書体</option>
+          <option value="kaisho">楷書体</option>
+          <option value="gyousho">行書体</option>
+          <option value="pop">ポップ体</option>
         </select>
         <label class="bt-width" title="文字サイズ">
           <input type="range" id="textFontSize" min="14" max="120" value="32">

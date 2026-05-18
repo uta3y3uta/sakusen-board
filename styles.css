@@ -20,8 +20,9 @@
   --accent-hover: #c08826;
   --accent-soft: #f9ecca;
   --accent-blue: #2d8cff;   /* kept for selection ring on shapes */
-  --share: #6aa84f;         /* warm green for share */
-  --share-hover: #58913e;
+  --share: #1f3a6b;         /* navy that pairs with gold */
+  --share-hover: #15294d;
+  --rotate: #6aa84f;        /* green for rotate handle */
   --danger: #d65656;
   --danger-hover: #b94343;
   --danger-soft: #f9e0e0;
@@ -707,7 +708,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   cursor: grab;
-  border-color: var(--share);
+  border-color: var(--rotate);
 }
 .card-handle.handle-rotate::after {
   content: '';
@@ -716,7 +717,7 @@ body {
   left: 50%;
   width: 1.5px;
   height: 14px;
-  background: var(--share);
+  background: var(--rotate);
   transform: translateX(-50%);
 }
 /* 複数選択（グループ）はアウトラインのみ */
@@ -790,7 +791,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   cursor: grab;
-  border-color: var(--share);
+  border-color: var(--rotate);
 }
 .shape-handle.handle-rotate::after {
   content: '';
@@ -799,7 +800,7 @@ body {
   left: 50%;
   width: 1.5px;
   height: 14px;
-  background: var(--share);
+  background: var(--rotate);
   transform: translateX(-50%);
 }
 

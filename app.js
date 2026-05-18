@@ -17,13 +17,26 @@ const COLOR_PALETTE = [
   '#ffcdd2','#ffe0b2','#fff59d','#c8e6c9','#bbdefb'
 ];
 
-// Font families for text element
+// Font families for text element — each key maps to { family, weight }
 const FONT_FAMILIES = {
-  gothic: '"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif',
-  mincho: '"Hiragino Mincho ProN","Yu Mincho","MS Mincho",serif',
-  maru: '"Hiragino Maru Gothic ProN","Meiryo",sans-serif',
-  rounded: '"M PLUS Rounded 1c","Comic Sans MS","Hiragino Maru Gothic ProN",cursive'
+  gothic:    { family: '"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif', weight: 600 },
+  mincho:    { family: '"Hiragino Mincho ProN","Yu Mincho","MS Mincho","HG明朝B",serif', weight: 600 },
+  maru:      { family: '"Hiragino Maru Gothic ProN","HGS丸ｺﾞｼｯｸM-PRO","Meiryo",sans-serif', weight: 600 },
+  rounded:   { family: '"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Comic Sans MS",cursive', weight: 700 },
+  bold:      { family: '"Hiragino Kaku Gothic StdN","Yu Gothic UI","Meiryo","HG創英角ｺﾞｼｯｸUB",sans-serif', weight: 900 },
+  thin:      { family: '"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo UI",sans-serif', weight: 300 },
+  kyoukasho: { family: '"UD デジタル 教科書体 NK-R","UD Digi Kyokasho NK-R","HG教科書体","HGS教科書体","Yu Gothic UI",sans-serif', weight: 500 },
+  kaisho:    { family: '"HGS楷書体","HG楷書体","DFP楷書体","BIZ UDPMincho","Yu Mincho",serif', weight: 500 },
+  gyousho:   { family: '"HGS行書体","HG行書体","DFP行書体","Yu Mincho",serif', weight: 500 },
+  pop:       { family: '"HGS創英角ﾎﾟｯﾌﾟ体","HG創英角ﾎﾟｯﾌﾟ体","Comic Sans MS","Hiragino Maru Gothic ProN",cursive', weight: 800 }
 };
+function getFont(key) {
+  const f = FONT_FAMILIES[key];
+  if (f && typeof f === 'object') return f;
+  // 旧データ（文字列）への後方互換
+  if (typeof f === 'string') return { family: f, weight: 600 };
+  return FONT_FAMILIES.gothic;
+}
 
 const DEFAULT_OWN_CARD = '#ffffff';
 const DEFAULT_OWN_TEXT = '#1e3a5f';
@@ -529,7 +542,7 @@ function renderCards() {
   const indexMap = {};
   state.members.forEach((m, i) => { indexMap[m.id] = i; });
 
-  const fontFamily = FONT_FAMILIES[state.cardFontKey] || FONT_FAMILIES.gothic;
+  const fontDef = getFont(state.cardFontKey);
   const bulkFontScale = state.cardFontScale || 1.0;
   const bulkCardScale = state.cardScale || 1.0;
 
@@ -543,7 +556,8 @@ function renderCards() {
     card.style.top = (m.y * 100) + '%';
     card.style.background = m.cardColor;
     card.style.color = m.textColor;
-    card.style.fontFamily = fontFamily;
+    card.style.fontFamily = fontDef.family;
+    card.style.fontWeight = fontDef.weight;
     const indivScale = (typeof m.scale === 'number' ? m.scale : 1.0);
     const indivFontScale = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
     const rotation = (typeof m.rotation === 'number' ? m.rotation : 0);
@@ -866,7 +880,9 @@ function renderShapes() {
       const span = document.createElement('span');
       span.className = 'text-content';
       span.textContent = s.content || 'テキスト';
-      span.style.fontFamily = FONT_FAMILIES[s.fontKey] || FONT_FAMILIES.gothic;
+      const tf = getFont(s.fontKey);
+      span.style.fontFamily = tf.family;
+      span.style.fontWeight = tf.weight;
       span.style.fontSize = (s.fontSize * rect.height) + 'px';
       span.style.color = s.color;
       div.appendChild(span);
