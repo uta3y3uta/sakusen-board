@@ -679,6 +679,8 @@ body {
 .card.team-own { border-color: var(--accent); }
 .card.selected {
   z-index: 50;
+  /* リサイズ・回転中の transform 変化を GPU 合成で滑らかに */
+  will-change: transform;
 }
 /* 単独選択時：青点線の枠＋青リサイズ丸＋緑回転丸（■ と同じ見た目） */
 .card.selected .card-bbox {

@@ -757,9 +757,14 @@ function attachCardDrag(card, member) {
       const lx = mx * Math.cos(rad) - my * Math.sin(rad);
       const ly = mx * Math.sin(rad) + my * Math.cos(rad);
       const localR = Math.sqrt(lx * lx + ly * ly);
-      // 掴んだ瞬間からの相対比でスケールを変える（最初にガクッと変わらない）
-      const ratio = start.startLocalR > 0 ? (localR / start.startLocalR) : 1.0;
-      const newIndiv = clamp(start.scale * ratio, 0.2, 6.0);
+      // 掴んだ瞬間からの「変位(px)」を直接スケール変化量に加算する。
+      // 比率(ratio)方式だと小さいカードを掴んだとき startLocalR が小さく，
+      // わずかなマウス移動でも倍率が一気に跳ねて「ボン」と大きくなって見える。
+      // ここでは「80px のドラッグで scale が 1.0 変わる」という直線的な対応に
+      // することで，どの初期サイズから始めても同じ滑らかさでじわじわ変化する。
+      const deltaR = localR - start.startLocalR;
+      const RESIZE_SENSITIVITY = 80;
+      const newIndiv = clamp(start.scale + deltaR / RESIZE_SENSITIVITY, 0.2, 6.0);
       member.scale = newIndiv;
       const finalScale = (state.cardScale || 1.0) * newIndiv;
       card.style.transform = `translate(-50%, -50%) rotate(${start.rotation}deg) scale(${finalScale})`;
