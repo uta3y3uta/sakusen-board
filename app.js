@@ -616,6 +616,200 @@ function renderCards() {
     card.addEventListener('dblclick', () => openEditModal(m.id));
     layer.appendChild(card);
   });
+
+  // 複数選択時にはグループ枠＋ハンドルを描画
+  renderGroupOverlay();
+}
+
+// ============================================================
+// グループ（複数選択）枠＋ハンドル
+// ============================================================
+function renderGroupOverlay() {
+  const layer = document.getElementById('cardLayer');
+  // 既存の overlay は破棄
+  const existing = layer.querySelector('.group-overlay');
+  if (existing) existing.remove();
+  if (selectedKind !== 'card' || selectedMemberIds.length < 2) return;
+
+  const selected = state.members.filter(m => m.onBoard && selectedMemberIds.includes(m.id));
+  if (selected.length < 2) return;
+
+  const board = document.getElementById('board');
+  const rect = board.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+
+  // 各カードの「回転を含む見かけ上の半径」を粗く見積もって AABB を作る
+  const bulkScale = state.cardScale || 1.0;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  selected.forEach(m => {
+    const s = bulkScale * (m.scale || 1.0);
+    // 回転に強い：対角線の半分をすべての向きの上限として使う
+    const halfDiag = Math.sqrt(92 * 92 + 32 * 32) * s / 2;
+    const hwN = halfDiag / rect.width;
+    const hhN = halfDiag / rect.height;
+    minX = Math.min(minX, m.x - hwN);
+    maxX = Math.max(maxX, m.x + hwN);
+    minY = Math.min(minY, m.y - hhN);
+    maxY = Math.max(maxY, m.y + hhN);
+  });
+
+  const cxNorm = (minX + maxX) / 2;
+  const cyNorm = (minY + maxY) / 2;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'group-overlay';
+  overlay.dataset.cx = String(cxNorm);
+  overlay.dataset.cy = String(cyNorm);
+  overlay.style.left = (minX * 100) + '%';
+  overlay.style.top = (minY * 100) + '%';
+  overlay.style.width = ((maxX - minX) * 100) + '%';
+  overlay.style.height = ((maxY - minY) * 100) + '%';
+
+  const bbox = document.createElement('div');
+  bbox.className = 'group-bbox';
+  overlay.appendChild(bbox);
+
+  const hResize = document.createElement('div');
+  hResize.className = 'group-handle handle-resize';
+  hResize.dataset.handle = 'resize';
+  overlay.appendChild(hResize);
+
+  const hRotate = document.createElement('div');
+  hRotate.className = 'group-handle handle-rotate';
+  hRotate.dataset.handle = 'rotate';
+  overlay.appendChild(hRotate);
+
+  layer.appendChild(overlay);
+  attachGroupDrag(overlay);
+}
+
+function attachGroupDrag(overlay) {
+  let action = null;
+  let start = {};
+  let rafScheduled = false;
+  let lastPoint = null;
+
+  const onDown = (e) => {
+    if (document.getElementById('board').classList.contains('draw-mode')) return;
+    const handle = e.target.closest('.group-handle');
+    if (!handle) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const p = e.touches ? e.touches[0] : e;
+    action = handle.dataset.handle === 'resize' ? 'resize' : 'rotate';
+
+    const board = document.getElementById('board');
+    const rect = board.getBoundingClientRect();
+    const cxNorm = parseFloat(overlay.dataset.cx);
+    const cyNorm = parseFloat(overlay.dataset.cy);
+    const centerX = rect.left + cxNorm * rect.width;
+    const centerY = rect.top + cyNorm * rect.height;
+
+    const dx0 = p.clientX - centerX;
+    const dy0 = p.clientY - centerY;
+    const startLocalR = Math.sqrt(dx0 * dx0 + dy0 * dy0);
+    const startMouseAngle = Math.atan2(dy0, dx0) * 180 / Math.PI;
+
+    // 各メンバーのスナップショット（中心からのオフセットを px で保存して回転時にアスペクト比を保つ）
+    const snaps = state.members
+      .filter(m => m.onBoard && selectedMemberIds.includes(m.id))
+      .map(m => ({
+        id: m.id,
+        x: m.x, y: m.y,
+        scale: m.scale || 1.0,
+        rotation: m.rotation || 0,
+        oxPx: (m.x - cxNorm) * rect.width,
+        oyPx: (m.y - cyNorm) * rect.height
+      }));
+
+    start = {
+      centerX, centerY, cxNorm, cyNorm,
+      boardWidth: rect.width, boardHeight: rect.height,
+      startLocalR, startMouseAngle, snaps
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+  };
+
+  const applyGroup = () => {
+    rafScheduled = false;
+    if (!action || !lastPoint) return;
+    const p = lastPoint;
+    const dx = p.clientX - start.centerX;
+    const dy = p.clientY - start.centerY;
+
+    if (action === 'resize') {
+      const localR = Math.sqrt(dx * dx + dy * dy);
+      // 比率方式。グループ枠は単独カードより大きいので startLocalR も大きく，跳ねにくい
+      const factor = start.startLocalR > 0
+        ? clamp(localR / start.startLocalR, 0.1, 10)
+        : 1.0;
+      start.snaps.forEach(snap => {
+        const m = state.members.find(x => x.id === snap.id);
+        if (!m) return;
+        m.x = clamp(start.cxNorm + (snap.oxPx * factor) / start.boardWidth, 0, 1);
+        m.y = clamp(start.cyNorm + (snap.oyPx * factor) / start.boardHeight, 0, 1);
+        m.scale = clamp(snap.scale * factor, 0.2, 6.0);
+        const el = document.querySelector(`.card[data-id="${snap.id}"]`);
+        if (el) {
+          el.style.left = (m.x * 100) + '%';
+          el.style.top = (m.y * 100) + '%';
+          const finalScale = (state.cardScale || 1.0) * m.scale;
+          el.style.transform = `translate(-50%, -50%) rotate(${m.rotation}deg) scale(${finalScale})`;
+        }
+      });
+    } else if (action === 'rotate') {
+      const cur = Math.atan2(dy, dx) * 180 / Math.PI;
+      const delta = cur - start.startMouseAngle;
+      const rad = delta * Math.PI / 180;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      start.snaps.forEach(snap => {
+        const m = state.members.find(x => x.id === snap.id);
+        if (!m) return;
+        const rxPx = cos * snap.oxPx - sin * snap.oyPx;
+        const ryPx = sin * snap.oxPx + cos * snap.oyPx;
+        m.x = clamp(start.cxNorm + rxPx / start.boardWidth, 0, 1);
+        m.y = clamp(start.cyNorm + ryPx / start.boardHeight, 0, 1);
+        m.rotation = snap.rotation + delta;
+        const el = document.querySelector(`.card[data-id="${snap.id}"]`);
+        if (el) {
+          el.style.left = (m.x * 100) + '%';
+          el.style.top = (m.y * 100) + '%';
+          const finalScale = (state.cardScale || 1.0) * (m.scale || 1.0);
+          el.style.transform = `translate(-50%, -50%) rotate(${m.rotation}deg) scale(${finalScale})`;
+        }
+      });
+    }
+  };
+
+  const onMove = (e) => {
+    if (!action) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    lastPoint = { clientX: p.clientX, clientY: p.clientY };
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(applyGroup);
+    }
+  };
+
+  const onUp = () => {
+    if (!action) return;
+    action = null;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+    saveState();
+    // 終了時に枠を再計算（カードが動いた／拡縮した結果を反映）
+    renderCards();
+  };
+
+  overlay.addEventListener('mousedown', onDown);
+  overlay.addEventListener('touchstart', onDown, { passive: false });
 }
 
 // 一括カードスケールの DOM 直接更新（再構築せず滑らかに）

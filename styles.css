@@ -728,6 +728,54 @@ body {
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(45, 140, 255, 0.18), 0 4px 12px rgba(95, 75, 40, 0.22);
 }
+/* 複数選択時のグループ枠＋リサイズ／回転ハンドル */
+.group-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 60;
+  will-change: transform;
+}
+.group-bbox {
+  position: absolute;
+  inset: -6px;
+  border: 1.5px dashed var(--accent-blue);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.group-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border: 2px solid var(--accent-blue);
+  border-radius: 50%;
+  touch-action: none;
+  pointer-events: auto;
+  z-index: 2;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.group-handle.handle-resize {
+  bottom: -12px;
+  right: -12px;
+  cursor: nwse-resize;
+}
+.group-handle.handle-rotate {
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  border-color: var(--rotate);
+}
+.group-handle.handle-rotate::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1.5px;
+  height: 18px;
+  background: var(--rotate);
+  transform: translateX(-50%);
+}
 .card .card-row {
   display: flex;
   align-items: center;
