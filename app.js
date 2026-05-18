@@ -453,10 +453,22 @@ function renderMemberList() {
 
     const numCell = document.createElement('div');
     numCell.className = 'member-num-cell';
+    const numCheck = document.createElement('input');
+    numCheck.type = 'checkbox';
+    numCheck.className = 'member-num-check';
+    numCheck.checked = !!m.showNumber;
+    numCheck.title = '番号をカードに表示';
+    numCheck.addEventListener('change', () => {
+      m.showNumber = numCheck.checked;
+      if (!m.number) m.number = String(idx + 1);
+      saveState();
+      renderMemberList();
+      renderCards();
+    });
     const numLabel = document.createElement('span');
     numLabel.className = 'member-num';
     numLabel.textContent = m.number || String(idx + 1);
-    numCell.append(numLabel);
+    numCell.append(numCheck, numLabel);
 
     const nameWrap = document.createElement('div');
     nameWrap.className = 'member-name';
@@ -536,10 +548,14 @@ function renderCards() {
     const indivFontScale = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
     const rotation = (typeof m.rotation === 'number' ? m.rotation : 0);
     const finalScale = bulkCardScale * indivScale;
-    const finalFont = 13 * bulkFontScale * indivFontScale;
-    // 13px はカードの基底フォントサイズ
-    card.style.fontSize = finalFont + 'px';
+    const finalFontScale = bulkFontScale * indivFontScale;
+    // カード自身の font-size は固定（13px）。フォントスライダーは中身の inner を transform: scale するだけ
     card.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${finalScale})`;
+
+    // 中身は .card-inner にまとめて入れる（フォントスケールは inner の transform で表現）
+    const inner = document.createElement('div');
+    inner.className = 'card-inner';
+    inner.style.transform = `scale(${finalFontScale})`;
 
     const row = document.createElement('div');
     row.className = 'card-row';
@@ -556,14 +572,16 @@ function renderCards() {
     nameSpan.textContent = m.name || '（空白）';
     row.appendChild(nameSpan);
 
-    card.appendChild(row);
+    inner.appendChild(row);
 
     if (m.other) {
       const otherSpan = document.createElement('span');
       otherSpan.className = 'card-other';
       otherSpan.textContent = m.other;
-      card.appendChild(otherSpan);
+      inner.appendChild(otherSpan);
     }
+
+    card.appendChild(inner);
 
     // 単独選択時のみ，リサイズ・回転ハンドルを表示（■と同じ見た目）
     if (selectedKind === 'card' && selectedMemberIds.length === 1 && selectedMemberIds[0] === m.id) {
@@ -598,14 +616,15 @@ function applyBulkCardScaleToDom() {
   });
 }
 
-// 一括フォントスケールの DOM 直接更新
+// 一括フォントスケールの DOM 直接更新（カード外形は不変。.card-inner だけ scale）
 function applyBulkFontScaleToDom() {
   const bulkF = state.cardFontScale || 1.0;
   document.querySelectorAll('#cardLayer .card[data-id]').forEach(el => {
     const m = state.members.find(x => x.id === el.dataset.id);
     if (!m) return;
     const indivF = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
-    el.style.fontSize = (13 * bulkF * indivF) + 'px';
+    const inner = el.querySelector('.card-inner');
+    if (inner) inner.style.transform = `scale(${bulkF * indivF})`;
   });
 }
 
@@ -623,7 +642,8 @@ function updateOneCardFont(m) {
   if (!el) return;
   const bulkF = state.cardFontScale || 1.0;
   const indivF = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
-  el.style.fontSize = (13 * bulkF * indivF) + 'px';
+  const inner = el.querySelector('.card-inner');
+  if (inner) inner.style.transform = `scale(${bulkF * indivF})`;
 }
 
 function attachCardDrag(card, member) {

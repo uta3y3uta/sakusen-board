@@ -315,7 +315,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.3px;
 }
-.lh-num { width: 36px; text-align: center; }
+.lh-num { width: 52px; }
 .lh-name { flex: 1; }
 .lh-act { width: 64px; }
 
@@ -360,9 +360,10 @@ body {
 .member-num-cell {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
+  gap: 4px;
+  width: 52px;
 }
+.member-num-check { width: 14px; height: 14px; cursor: pointer; margin: 0; accent-color: var(--accent); }
 .member-num {
   font-size: 11px;
   color: var(--text-muted);
@@ -639,15 +640,15 @@ body {
 /* ===== Cards ===== */
 .card {
   position: absolute;
-  /* カードの外形は固定。フォントサイズが変わっても枠は変わらない */
+  /* カードの外形は完全固定。フォントサイズに依存しない */
   width: 92px;
-  min-height: 30px;
-  padding: 6px 8px;
+  height: 32px;
+  padding: 0;
   box-sizing: border-box;
   background: #ffffff;
   color: var(--text);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 13px; /* 基準値。実際の表示サイズは .card-inner の transform: scale で決まる */
   font-weight: 600;
   text-align: center;
   cursor: grab;
@@ -657,11 +658,20 @@ body {
   transform: translate(-50%, -50%);
   touch-action: none;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: visible;
   white-space: nowrap;
+}
+/* 中身ラッパー：これだけが transform: scale で大小する。カードの外形は変わらない */
+.card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  pointer-events: none;
+  line-height: 1.2;
 }
 .card.dragging { cursor: grabbing; box-shadow: 0 8px 20px rgba(95, 75, 40, 0.3); z-index: 100; }
 .card.team-opponent { border-color: var(--danger); }
