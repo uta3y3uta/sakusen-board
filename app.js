@@ -673,8 +673,10 @@ function attachCardDrag(card, member) {
     const handle = e.target.closest('.card-handle');
 
     if (handle) {
-      // 単独選択中のみハンドルが存在するので，このカードを選択状態にする
-      selectCard(member.id);
+      // ハンドルは単独選択中のカードにしか存在しない。
+      // ここで selectCard(member.id) を呼ぶと renderCards() が走り，
+      // いま掴んでいる card DOM が detach されて mousemove 中の反映が見えなくなり，
+      // mouseup 後の再描画で「ボンッ」と一気に大きく見える原因になるので呼ばない。
       action = handle.dataset.handle === 'resize' ? 'resize' : 'rotate';
       const boardRect = document.getElementById('board').getBoundingClientRect();
       const centerX = boardRect.left + member.x * boardRect.width;
