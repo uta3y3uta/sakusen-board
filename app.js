@@ -586,6 +586,46 @@ function renderCards() {
   });
 }
 
+// 一括カードスケールの DOM 直接更新（再構築せず滑らかに）
+function applyBulkCardScaleToDom() {
+  const bulk = state.cardScale || 1.0;
+  document.querySelectorAll('#cardLayer .card[data-id]').forEach(el => {
+    const m = state.members.find(x => x.id === el.dataset.id);
+    if (!m) return;
+    const indiv = (typeof m.scale === 'number' ? m.scale : 1.0);
+    const rot = (typeof m.rotation === 'number' ? m.rotation : 0);
+    el.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(${bulk * indiv})`;
+  });
+}
+
+// 一括フォントスケールの DOM 直接更新
+function applyBulkFontScaleToDom() {
+  const bulkF = state.cardFontScale || 1.0;
+  document.querySelectorAll('#cardLayer .card[data-id]').forEach(el => {
+    const m = state.members.find(x => x.id === el.dataset.id);
+    if (!m) return;
+    const indivF = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
+    el.style.fontSize = (13 * bulkF * indivF) + 'px';
+  });
+}
+
+// 個別カード一枚だけの transform / font 更新（編集モーダル用）
+function updateOneCardTransform(m) {
+  const el = document.querySelector(`#cardLayer .card[data-id="${m.id}"]`);
+  if (!el) return;
+  const bulk = state.cardScale || 1.0;
+  const indiv = (typeof m.scale === 'number' ? m.scale : 1.0);
+  const rot = (typeof m.rotation === 'number' ? m.rotation : 0);
+  el.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(${bulk * indiv})`;
+}
+function updateOneCardFont(m) {
+  const el = document.querySelector(`#cardLayer .card[data-id="${m.id}"]`);
+  if (!el) return;
+  const bulkF = state.cardFontScale || 1.0;
+  const indivF = (typeof m.fontScale === 'number' ? m.fontScale : 1.0);
+  el.style.fontSize = (13 * bulkF * indivF) + 'px';
+}
+
 function attachCardDrag(card, member) {
   let action = null; // 'move' | 'resize' | 'rotate'
   let start = {};
@@ -638,10 +678,13 @@ function attachCardDrag(card, member) {
     document.addEventListener('touchend', onUp);
   };
 
-  const onMove = (e) => {
-    if (!action) return;
-    e.preventDefault();
-    const p = e.touches ? e.touches[0] : e;
+  let rafScheduled = false;
+  let lastPoint = null;
+  let lastShiftKey = false;
+  const applyMove = () => {
+    rafScheduled = false;
+    if (!action || !lastPoint) return;
+    const p = lastPoint;
 
     if (action === 'move') {
       const board = document.getElementById('board');
@@ -678,7 +721,7 @@ function attachCardDrag(card, member) {
       const localR = Math.sqrt(lx * lx + ly * ly);
       const totalScale = localR / start.halfDiag;
       const bulk = state.cardScale || 1.0;
-      let newIndiv = clamp(totalScale / bulk, 0.3, 5.0);
+      let newIndiv = clamp(totalScale / bulk, 0.2, 6.0);
       member.scale = newIndiv;
       const finalScale = bulk * newIndiv;
       card.style.transform = `translate(-50%, -50%) rotate(${start.rotation}deg) scale(${finalScale})`;
@@ -686,10 +729,21 @@ function attachCardDrag(card, member) {
       const cur = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX) * 180 / Math.PI;
       let newRot = start.rotation + (cur - start.startMouseAngle);
       // Shift で 15° スナップ
-      if (e.shiftKey) newRot = Math.round(newRot / 15) * 15;
+      if (lastShiftKey) newRot = Math.round(newRot / 15) * 15;
       member.rotation = newRot;
       const finalScale = (state.cardScale || 1.0) * (member.scale || 1.0);
       card.style.transform = `translate(-50%, -50%) rotate(${newRot}deg) scale(${finalScale})`;
+    }
+  };
+  const onMove = (e) => {
+    if (!action) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    lastPoint = { clientX: p.clientX, clientY: p.clientY };
+    lastShiftKey = !!e.shiftKey;
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(applyMove);
     }
   };
 
@@ -865,10 +919,12 @@ function attachShapeEvents(div, shape) {
     document.addEventListener('touchend', onUp);
   };
 
-  const onMove = (e) => {
-    if (!action) return;
-    e.preventDefault();
-    const p = e.touches ? e.touches[0] : e;
+  let rafScheduled = false;
+  let lastPoint = null;
+  const applyShapeMove = () => {
+    rafScheduled = false;
+    if (!action || !lastPoint) return;
+    const p = lastPoint;
 
     if (action === 'move') {
       const dx = (p.clientX - start.clientX) / start.boardWidth;
@@ -883,7 +939,8 @@ function attachShapeEvents(div, shape) {
       const rad = -start.rotation * Math.PI / 180;
       const localX = mx * Math.cos(rad) - my * Math.sin(rad);
       const localY = mx * Math.sin(rad) + my * Math.cos(rad);
-      const minPx = 20;
+      // 図形を極小まで縮められるよう最小サイズを 4px に
+      const minPx = 4;
       const halfWpx = Math.max(minPx, Math.abs(localX));
       const halfHpx = Math.max(minPx, Math.abs(localY));
       shape.w = (halfWpx * 2) / start.boardWidth;
@@ -894,6 +951,16 @@ function attachShapeEvents(div, shape) {
       const angle = Math.atan2(p.clientY - start.centerY, p.clientX - start.centerX);
       shape.rotation = (angle * 180 / Math.PI) + 90;
       div.style.transform = `translate(-50%, -50%) rotate(${shape.rotation}deg)`;
+    }
+  };
+  const onMove = (e) => {
+    if (!action) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    lastPoint = { clientX: p.clientX, clientY: p.clientY };
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(applyShapeMove);
     }
   };
 
@@ -1692,25 +1759,25 @@ function wireEvents() {
     renderCards();
   });
 
-  // 一括サイズスライダー（Tの右隣）
+  // 一括サイズスライダー（Tの右隣）— DOM を直接更新してなめらかに
   const cardScaleBulk = document.getElementById('cardScaleBulk');
   const cardFontScaleBulk = document.getElementById('cardFontScaleBulk');
   if (cardScaleBulk) {
     cardScaleBulk.addEventListener('input', e => {
       state.cardScale = parseFloat(e.target.value);
-      renderCards();
+      applyBulkCardScaleToDom();
     });
     cardScaleBulk.addEventListener('change', () => saveState());
   }
   if (cardFontScaleBulk) {
     cardFontScaleBulk.addEventListener('input', e => {
       state.cardFontScale = parseFloat(e.target.value);
-      renderCards();
+      applyBulkFontScaleToDom();
     });
     cardFontScaleBulk.addEventListener('change', () => saveState());
   }
 
-  // 編集モーダルのスライダー（数値表示の即時更新）
+  // 編集モーダルのスライダー（DOM 直接更新で滑らか）
   const editCardScale = document.getElementById('editCardScale');
   const editFontScale = document.getElementById('editFontScale');
   if (editCardScale) {
@@ -1719,7 +1786,7 @@ function wireEvents() {
       document.getElementById('editCardScaleVal').textContent = v.toFixed(2);
       if (editingMemberId) {
         const m = state.members.find(x => x.id === editingMemberId);
-        if (m) { m.scale = v; renderCards(); }
+        if (m) { m.scale = v; updateOneCardTransform(m); }
       }
     });
   }
@@ -1729,7 +1796,7 @@ function wireEvents() {
       document.getElementById('editFontScaleVal').textContent = v.toFixed(2);
       if (editingMemberId) {
         const m = state.members.find(x => x.id === editingMemberId);
-        if (m) { m.fontScale = v; renderCards(); }
+        if (m) { m.fontScale = v; updateOneCardFont(m); }
       }
     });
   }
